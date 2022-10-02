@@ -21,6 +21,8 @@ from rpy2.robjects.packages import importr
 
 #from power_evaluation import limma_test
 
+user_specified_n_CpGs = [1000]
+
 pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -55,27 +57,7 @@ beta_matrix.columns = list_of_samples
 
 print("The reference data - Beta matrix:")
 #print(beta_matrix.shape)
-#print(beta_matrix)
-
-
-#GeoParse retrieval
-#import GEOparse
-#gse = GEOparse.get_GEO(geo="GSE145714", destdir="./", include_data=True)
-#for gsm_name, gsm in gse.gsms.items():
-#    print("Name: ", gsm_name)
-#    print("Metadata: ",)
-#    for key, value in gsm.metadata.items():
-#        print(" - %s : %s" % (key, ", ".join(value)))
-#    print("Table data: ",)
-#    print(gsm.table)
-
-#for gpl_name, gpl in gse.gpls.items():
-#    print("Name: ", gpl_name)
-#    print("Metadata:",)
-#    for key, value in gpl.metadata.items():
-#        print(" - %s : %s" % (key, ", ".join(value)))
-#    print("Table data:",)
-#    print(gpl.table.head())
+print(beta_matrix)
 
 # Function for calculating the mean of CpGs across all samples.
 def calculate_mean(beta_matrix):
@@ -134,16 +116,18 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
     means_vector_df = pd.DataFrame(means_vector)
     stds_vector_df = pd.DataFrame(stds_vector)
 
-    for index, row in enumerate(means_vector.tolist()):
+    for index in range(0, len(means_vector_df.index)):
+        #print("in here")
+        #print(index)
         cpg_i = np.random.normal(loc=means_vector_df.iloc[index], scale=stds_vector_df.iloc[index], size=int(number_of_samples_in_group))
         all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i.tolist()).T)
         cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
     for index, row in all_cpgs.iterrows():
         for j, value in all_cpgs.iloc[index].items():
             if float(value) > float(1.0):
-                all_cpgs.iloc[index, j] = max(beta_matrix.iloc[index])
+                all_cpgs.iloc[index, j] = np.nanmax(beta_matrix.iloc[index])
             elif float(value) < float(0):
-                all_cpgs.iloc[index, j] = min(beta_matrix.iloc[index])
+                all_cpgs.iloc[index, j] = np.nanmin(beta_matrix.iloc[index])
     all_cpgs.index = cpg_name.iloc[:,0].tolist()
     return all_cpgs
 
@@ -151,6 +135,8 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
 def generate_cpgs_for_groups(g1_means_vector, g2_means_vector, vector_std, g1_number_of_samples, g2_number_of_samples):
     g1_cpgs = sample_distribution(g1_means_vector, vector_std, g1_number_of_samples)
     g2_cpgs = sample_distribution(g2_means_vector, vector_std, g2_number_of_samples)
+    #g1_cpgs = g1_means_vector
+    #g2_cpgs = g2_means_vector
     combined_groups_cpgs = pd.concat([g1_cpgs, g2_cpgs], axis=1)
     return(combined_groups_cpgs)
 
@@ -189,15 +175,23 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     shape_parameter_real_world = pd.concat([means_real_world, stds_real_world], axis=1)
 
     indices = user_specified_num_elements(shape_parameter_real_world.iloc[:,0], user_specified_n_CpGs) #indices to sample mean/stds
+    #indices = user_specified_num_elements(beta_matrix.iloc[0:10000:,:],user_specified_n_CpGs)
+
     means_stds_by_indicies_sample = shape_parameter_real_world.iloc[indices,:]
     vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
     vector_stds = means_stds_by_indicies_sample.iloc[:, 1]
+
+
     print("Inducing differences between groups...")
     vector_of_affected_means = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size)
     g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
     g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
+
+    #vector_of_affected_means = induce_group_differnces(num_true_modified, np.array(beta_matrix.iloc[0:10000,int(g1_number_of_samples):30], dtype='f'),effect_size)
+
     print("Generating cpgs for groups...")
     simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_stds, g1_number_of_samples, g2_number_of_samples)
+    #simulated_data = generate_cpgs_for_groups(beta_matrix.iloc[0:10000, 0:int(g1_number_of_samples)], pd.DataFrame(vector_of_affected_means), None, g1_number_of_samples, g2_number_of_samples)
 
     simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
     simulated_data.columns = simulated_data_columns
@@ -213,10 +207,10 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     params_summary = pd.DataFrame(params, columns=['Parameter', 'Value'])
     params_summary.to_csv(os.getcwd()+dirname+file_name_user_parameters, header=True)
 
-    with ZipFile(workflow_num+str('.zip'), 'w') as zipObj:
-        zipObj.write(os.getcwd()+dirname+file_name_simulated_data)
-        zipObj.write(os.getcwd()+dirname+file_name_user_parameters)
-        zipObj.write(os.getcwd()+dirname+file_name_truly_modified_indices)
+    with ZipFile(os.getcwd()+dirname+workflow_num+str('.zip'), 'w') as zipObj:
+        zipObj.write(os.getcwd()+dirname+file_name_simulated_data, file_name_simulated_data)
+        zipObj.write(os.getcwd()+dirname+file_name_user_parameters, file_name_user_parameters)
+        zipObj.write(os.getcwd()+dirname+file_name_truly_modified_indices, file_name_truly_modified_indices)
 
 def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
@@ -229,10 +223,10 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
 
 
 healthy_proportion = [0.5]
-num_true_modified = [1,4,7,10,13]
-user_specified_n_CpGs = [10000]
-total_num_samples_vector = [50, 100,200,350,500,650,800,950]
-effect_size_vector = [0.05]
+num_true_modified = [1,5,10, 15, 35, 50, 95, 125]#[1,4,7,10,13]
+user_specified_n_CpGs = [1000]
+total_num_samples_vector = [50,100,200,350,500,650,800,950]
+effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
 multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
 
 totaltime = round((time.time() - starttime), 2)
