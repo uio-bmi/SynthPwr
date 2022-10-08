@@ -1,5 +1,6 @@
 import csv
 import os
+import random
 import zipfile
 from re import sub
 from zipfile import ZipFile
@@ -27,7 +28,7 @@ from rpy2.robjects.vectors import DataFrame, StrVector
 from scipy.stats import ttest_ind
 
 pandas2ri.activate()
-dirname = "/experiments/"
+dirname = os.sep+"power_experiments"+os.sep
 base = importr('base')
 packnames = ('stats', 'caret')
 names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
@@ -47,8 +48,6 @@ def calculate_delta_beta(group1_means_vector,group2_means_vector):
     return list_of_delta
 
 def unzip_workflow(workflow_num):
-    #if workflow_num == -1:
-    #    workflow_num = 0
     zf = zipfile.ZipFile(os.getcwd()+dirname+"SimMethyl_run_"+str(workflow_num)+".zip")
     zip_directory = "SimMethyl_run_"+str(workflow_num)
     if os.path.isdir(os.getcwd() + dirname+zip_directory+"/") == False:
@@ -69,8 +68,6 @@ def get_all_zip(n_zip):
         all_enviornments_list.append(run)
     return all_enviornments_list
 
-#not only simulated data, based on the permater of text file name, give associated data.
-#get targeted experiment results
 def extract_data_from_zip(all_runs_zip_num, workflow_num, file_name):
     file_name_to_extract = -1
     if file_name=="Simulated_data":
@@ -82,9 +79,7 @@ def extract_data_from_zip(all_runs_zip_num, workflow_num, file_name):
     else:
         print("something very strange has occured")
     all_zip = get_all_zip(all_runs_zip_num)
-    #print("A",all_zip)
     extracted_data = all_zip[workflow_num][file_name_to_extract]
-    #print("Extracting content: ",extracted_data)
     return extracted_data
 
 #targets simulated data characteristics to determine num samples
@@ -97,16 +92,14 @@ def get_num_sample_per_group(all_zips, workflow_num, simulated_df):
     return result
 
 def tradtional_t_test(simulated_df, n_group1):
-    #user minifi
     t_test_label = "Welch Two Sample t-test"
     n_group1 = int(n_group1)
     all_p_val = [num for num in range(0, len(simulated_df.index))]
     for i in range(0, len(simulated_df.index)):
         gr1 = simulated_df.iloc[i, 0:n_group1]
         gr2 = simulated_df.iloc[i, n_group1:]
-        #t_test_pvalue = pg.ttest(gr1, gr2, correction=False)
         t_test_statistic, t_test_pvalue = ttest_ind(gr1.dropna(),gr2.dropna(), equal_var=True)
-        all_p_val[i] = t_test_pvalue#t_test_pvalue['p-val'].values[0]
+        all_p_val[i] = t_test_pvalue
     return all_p_val
 
 def ks_test(simulated_df, n_group1):
@@ -183,8 +176,6 @@ def run_all_test(all_zips, workflow_num, beta_or_M_string):
     else:
         print("invalid input for beta_or_M_string in run_all_test, use either M or beta")
 
-    # Array probe design
-
     simulated_data_frame.fillna(0)
     n_samples_per_gr = get_num_sample_per_group(all_zips, workflow_num, simulated_data_frame)
     n_group1 = n_samples_per_gr[0]
@@ -215,17 +206,14 @@ def multitest_p_adjust(all_test_df, p_adjust_method_string):
 # prior to confusion matrix construction, CpGs should be labeled based on two distinction characteristics: whether they are truly modified, and if their adjusted p-value is less then 0.05
 # The input is the vector with observed values within the simulated data. The output is a boolean which represents if the observation is signficantly different between the two groups (0) and not significant (1)
 def create_predicted_vector(p_val_vector, group1_means_vector,group2_means_vector, p_cut):
-    bool_signif_p_val = calculate_delta_beta(group1_means_vector,group2_means_vector)
-    for i in range(0, len(bool_signif_p_val)):
-        print("sfias")
-        print(bool_signif_p_val[i])
-        print(p_val_vector.iloc[i])
-
-        if bool_signif_p_val[i] >= 0.01 and p_val_vector.iloc[i] < 0.05:
-            bool_signif_p_val[i] = True
-        elif bool_signif_p_val[i] >= 0.01 and p_val_vector.iloc[i] > 0.05:
-            bool_signif_p_val[i] = False
-    return bool_signif_p_val
+    delta_beta_cpg = calculate_delta_beta(group1_means_vector,group2_means_vector)
+    boolean_predicted_vector = [row for row in range(0, len(p_val_vector.index))]
+    for i in range(0, len(delta_beta_cpg)):
+        if delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] < 0.05:
+            boolean_predicted_vector[i] = True
+        elif delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] > 0.05:
+            boolean_predicted_vector[i] = False
+    return boolean_predicted_vector
 
 def create_expected_val_vector(p_val_df, all_runs_zip_num,workflow_num):
     indices_truly_different = extract_data_from_zip(all_runs_zip_num, workflow_num,"truly_different_sites_indices")
@@ -247,20 +235,18 @@ def create_confusion_matrix(all_test_df, group1_means_vector,group2_means_vector
 
 def calc_empirical_marg_power(workflows_confusion_matrix):
     df_all_test = pd.DataFrame(index=range(4), columns=range(2))
-    #df_all_test = pd.DataFrame()
-    #df_all_test.columns = ['Power']
     df_all_test.columns = ['Power', 'Test']
     df_all_test['Test'] = ['T_test', 'KS_test', 'Limma_test', 'W_test']
 
     for i in range(0, len(workflows_confusion_matrix)):
         confusion_matrix = workflows_confusion_matrix[i]
-        print(confusion_matrix[1])
+        #print(confusion_matrix[1])
         true_positive = confusion_matrix[1][1][1]
         false_positive = confusion_matrix[1][1][0]
         false_negative = confusion_matrix[1][0][1]
         true_negative = confusion_matrix[1][0][0]
         power_calc_val = int(true_positive)/(int(true_positive)+int(false_negative))
-        #df_all_test = df_all_test.append(pd.Series(power_calc_val), ignore_index=True)
+        #print("False Positive proportion: ",int(false_positive)/(int(false_positive)+int(true_positive)))
         df_all_test.iloc[i, 0] = power_calc_val
     print(df_all_test)
     return df_all_test
@@ -269,6 +255,7 @@ def power_calc_multiple_runs(all_zips, p_adjust_method_string, beta_or_M_string,
     df_all_test = pd.DataFrame()
 
     for i in range(0, all_zips):
+        print("Power Calculation for Workflow: ",i)
         sim_data = extract_data_from_zip(all_zips, i, "Simulated_data")
         n_samples_per_gr = get_num_sample_per_group(all_zips, i, sim_data)
         n_group1 = n_samples_per_gr[0]
@@ -281,8 +268,8 @@ def power_calc_multiple_runs(all_zips, p_adjust_method_string, beta_or_M_string,
         calc_power_value['ID'] = np.repeat(i, 4).tolist()#i
         df_all_test = df_all_test.append(calc_power_value)
     df_all_test.columns = ['Power', 'Test', 'ID']
-    #df_all_test.columns = ['Power', 'ID']
-    print(df_all_test)
+    print("for multiple test runs")
+    print(df_all_test.to_string())
     return df_all_test
 
 
@@ -291,6 +278,7 @@ def get_all_parameters(all_zips):
     environmental_tests_df = pd.DataFrame(index=range(0), columns=range(6))
     environmental_tests_df.columns = ['n_samples','n_CpGs','healthy_proportion','effect_size','n_modified_CpGs', 'ID']
     for i in range(0, all_zips):
+        print("unpacking zip: ",i)
         user_params = extract_data_from_zip(all_zips,i,"User_Parameters")
         user_params = user_params.T
         environmental_tests_df.loc[len(environmental_tests_df.index)] = user_params.iloc[1].tolist() + [i]
@@ -301,24 +289,18 @@ def merge_data(all_zips, p_adjust_method_string, beta_or_M_string, p_cut):
     parameters = get_all_parameters(all_zips)
     output_df = power_calc_val.merge(parameters, how='inner', on='ID')
     print("The output for analysis: ")
-    print(output_df)
+    print(output_df.to_string())
     return output_df
 
 def plot_line(data_df, y_parameter_string, varied_parameter_string, p_adjust_method_string, beta_or_M_string):
-    #print("selected_df before")
-    #print(data_df)
     selected_parameters_df = data_df.loc[:,['Power','Test',varied_parameter_string,y_parameter_string]]
-    #selected_parameters_df = data_df.loc[:, ['Power', varied_parameter_string, y_parameter_string]]
-
-    #print("selected_df after")
-
     y_parameter = y_parameter_string
     varied_parameter = varied_parameter_string
     for idx, val in enumerate(selected_parameters_df[varied_parameter].unique()):
         plt.figure()
         selected_parameters = selected_parameters_df.loc[selected_parameters_df[varied_parameter] == val,:]
         varied_param_i = val
-        print("this is one unique")
+        print("One unique value of varied parameter: ", val)
         print(selected_parameters)
         plt.title("Sample Vs Power ("+varied_parameter+" = "+str(val)+")")
         plt.xlabel('Sample')
@@ -332,31 +314,20 @@ def plot_line(data_df, y_parameter_string, varied_parameter_string, p_adjust_met
 def heat_map(data_df, x_parameter_string, y_parameter_string, p_adjust_method_string, test_string, beta_or_M_string):
     plt.figure()
     selected_parameters_df = data_df.loc[:, ['Power', 'Test', x_parameter_string, y_parameter_string]]
-    #selected_parameters_df = data_df.loc[:, ['Power', x_parameter_string, y_parameter_string]]
-    #print("in heat", selected_parameters_df)
     y_parameter = y_parameter_string
     x_parameter = x_parameter_string
-    print(test_string)
-    #print(selected_parameters_df.loc[selected_parameters_df['Test'] == test_string,:])
-    #print(selected_parameters_df['Test'] == test_string)
     selected_parameters_df = selected_parameters_df.loc[selected_parameters_df['Test'] == test_string,:]
-
-    print("just check")
-    print(selected_parameters_df)
-    #selected_parameters_df = selected_parameters_df.drop(columns=['healthy_proportion', 'n_CpGs', 'ID', 'Test', 'n_modified_CpGs'],axis=1)
-    #selected_parameters_df = pd.unique(selected_parameters_df)
-    #selected_parameters_df = selected_parameters_df.sort_values(by=['n_samples', 'Power'])
-    df_m = selected_parameters_df.reset_index().pivot_table(index=y_parameter,columns=x_parameter, values='Power', aggfunc='mean')
-    print("matrix", df_m)
+    plt.figure()
+    df_m = selected_parameters_df.reset_index().pivot_table(index=y_parameter,columns=x_parameter, values='Power')
+    print("heat map 2D grid: ", df_m)
     df_m = df_m.fillna(0)
-
     fig, ax = plt.subplots(figsize=(10, 10))
     plt.title("HeatMap of "+y_parameter+ " and "+ x_parameter)
     plt.xlabel(x_parameter)
     plt.ylabel('Sample')
     ax = sns.heatmap(df_m, cmap='crest', annot=True)
     fig = ax.get_figure()
-    fig.savefig(str("HeatMap_") + y_parameter + "_vs_" +x_parameter+ "_fill_Power_"+"_test_"+test_string+"_padjust_"+p_adjust_method_string+"_"+beta_or_M_string + ".png", dpi=100)
+    fig.savefig(str("HeatMap_") + y_parameter + "_vs_" +x_parameter +"_fill_Power_"+"test_"+test_string+"_padjust_"+p_adjust_method_string+"_"+beta_or_M_string + ".png", dpi=100)
 
 #Aggregate function that calculates marginal power for all the tests across samples based on user-defined inputs. As an output it generates line plots and heat maps that shows the relationship between power and two varying parameters and three constant parameters
 def PowerCalc(num_zips, p_adjust_method_string, beta_or_M_string, y_parameter_string, x_parameter_string, color_string, test_vector_string,p_cut):
@@ -368,11 +339,11 @@ def PowerCalc(num_zips, p_adjust_method_string, beta_or_M_string, y_parameter_st
     for test in test_vector_string:
         heat_map(all_test_all_zips, x_parameter_string, y_parameter_string, p_adjust_method_string,test,beta_or_M_string)
 
-num_zips = 64 # number of simulated data environmental workflows
+num_zips = 512 # number of simulated data environmental workflows
 p_adjust_method_string = "fdr" #"none"/"BH"/"bonferroni"/"fdr"
 beta_or_M_string = "M" #"beta"/"M"
 y_parameter_string = "n_samples" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
-x_parameter_string = "n_modified_CpGs" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
+x_parameter_string = "effect_size" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
 color_string = "Power"
 test_vector_string = ["T_test","Limma_test", "KS_test", "W_test"]
 p_cut = 0.05 #0.01, 0.1, 0.05

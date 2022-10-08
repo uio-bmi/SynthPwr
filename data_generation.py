@@ -27,13 +27,13 @@ pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 starttime = time.time()
-dirname = "/experiments/"
+dirname = os.sep+"dgp_experiments"+os.sep
 #GeoQuery emulated retrieval
 robjects.r('''
             library(GEOquery)
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
-            GEO_real_world_data <- "GSE145714"
+            GEO_real_world_data <- "GSE67170"
             gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE)
             beta_matrix <- as.data.frame(exprs(gset[[1]]))
             sample_names <- colnames(beta_matrix)
@@ -135,8 +135,6 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
 def generate_cpgs_for_groups(g1_means_vector, g2_means_vector, vector_std, g1_number_of_samples, g2_number_of_samples):
     g1_cpgs = sample_distribution(g1_means_vector, vector_std, g1_number_of_samples)
     g2_cpgs = sample_distribution(g2_means_vector, vector_std, g2_number_of_samples)
-    #g1_cpgs = g1_means_vector
-    #g2_cpgs = g2_means_vector
     combined_groups_cpgs = pd.concat([g1_cpgs, g2_cpgs], axis=1)
     return(combined_groups_cpgs)
 
@@ -151,7 +149,6 @@ def generate_col_names(g1_number_of_samples, g2_number_of_samples):
 
 #Create all combinations (cartisian product) of the input parameters (5 user-defined parameters)
 def get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
-    #Create a cartesian product of parameter combinations
     all_combinations = list(
         itertools.product(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified,
                           user_specified_n_CpGs))
@@ -175,7 +172,6 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     shape_parameter_real_world = pd.concat([means_real_world, stds_real_world], axis=1)
 
     indices = user_specified_num_elements(shape_parameter_real_world.iloc[:,0], user_specified_n_CpGs) #indices to sample mean/stds
-    #indices = user_specified_num_elements(beta_matrix.iloc[0:10000:,:],user_specified_n_CpGs)
 
     means_stds_by_indicies_sample = shape_parameter_real_world.iloc[indices,:]
     vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
@@ -187,11 +183,9 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
     g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
 
-    #vector_of_affected_means = induce_group_differnces(num_true_modified, np.array(beta_matrix.iloc[0:10000,int(g1_number_of_samples):30], dtype='f'),effect_size)
 
     print("Generating cpgs for groups...")
     simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_stds, g1_number_of_samples, g2_number_of_samples)
-    #simulated_data = generate_cpgs_for_groups(beta_matrix.iloc[0:10000, 0:int(g1_number_of_samples)], pd.DataFrame(vector_of_affected_means), None, g1_number_of_samples, g2_number_of_samples)
 
     simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
     simulated_data.columns = simulated_data_columns
@@ -223,7 +217,7 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
 
 
 healthy_proportion = [0.5]
-num_true_modified = [1,5,10, 15, 35, 50, 95, 125]#[1,4,7,10,13]
+num_true_modified = [5,10, 15, 20, 35, 50, 95, 125]#[1,4,7,10,13]
 user_specified_n_CpGs = [1000]
 total_num_samples_vector = [50,100,200,350,500,650,800,950]
 effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
