@@ -7,6 +7,7 @@ import pandas as pd
 import random
 import time
 import warnings
+from multiprocessing import Pool
 from itertools import product
 
 import rpy2
@@ -117,8 +118,6 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
     stds_vector_df = pd.DataFrame(stds_vector)
 
     for index in range(0, len(means_vector_df.index)):
-        #print("in here")
-        #print(index)
         cpg_i = np.random.normal(loc=means_vector_df.iloc[index], scale=stds_vector_df.iloc[index], size=int(number_of_samples_in_group))
         all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i.tolist()).T)
         cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
@@ -208,20 +207,38 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
 
 def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
-    for i in range(len(combination_df)):
-        print("Running environmental setup using parameters:")
-        print(combination_df.iloc[i])
-        simulator(combination_df.loc[i, 'n_samples'], combination_df.loc[i, 'effect_size'],
-                  combination_df.loc[i, 'healthy_proportion'], combination_df.loc[i, 'n_true_modified_CpGs'],
-                  combination_df.loc[i, 'n_CpGs'], combination_df.loc[i, 'workflow'])
+    list_of_workflows = [num for num in range(0, len(combination_df.index))]
+    pool = Pool() # user specified CPUs e.g., processes=8
+    result = pool.map(simulator_pool,list_of_workflows)
+    pool.close()
+    print(result)
+    # Serial Version
+    #for i in range(len(combination_df)):
+    #    print("Running environmental setup using parameters:")
+    #    print(combination_df.iloc[i])
+    #    simulator(combination_df.loc[i, 'n_samples'], combination_df.loc[i, 'effect_size'],
+    #              combination_df.loc[i, 'healthy_proportion'], combination_df.loc[i, 'n_true_modified_CpGs'],
+    #              combination_df.loc[i, 'n_CpGs'], combination_df.loc[i, 'workflow'])
 
+def simulator_pool(workflow):
+    healthy_proportion = [0.5]
+    num_true_modified = [5]  # ,10, 15, 20, 35, 50, 95, 125]#[1,4,7,10,13]
+    user_specified_n_CpGs = [1000]
+    total_num_samples_vector = [50, 100,200,350,500,650,800,950]
+    effect_size_vector = [0.01, 0.03,0.05,0.07,0.09,0.11,0.13,0.15]
+    combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,
+                                          num_true_modified, user_specified_n_CpGs)
+    print("Running environmental setup using parameters:")
+    print(workflow)
+    simulator(combination_df.loc[workflow, 'n_samples'], combination_df.loc[workflow, 'effect_size'],
+              combination_df.loc[workflow, 'healthy_proportion'], combination_df.loc[workflow, 'n_true_modified_CpGs'],
+              combination_df.loc[workflow, 'n_CpGs'], combination_df.loc[workflow, 'workflow'])
 
-healthy_proportion = [0.5]
-num_true_modified = [5,10, 15, 20, 35, 50, 95, 125]#[1,4,7,10,13]
-user_specified_n_CpGs = [1000]
-total_num_samples_vector = [50,100,200,350,500,650,800,950]
-effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
-multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
-
-totaltime = round((time.time() - starttime), 2)
-print("Total time in seconds: ",str(totaltime))
+if __name__ == '__main__':
+    healthy_proportion = [0.5]
+    num_true_modified = [5]#,10, 15, 20, 35, 50, 95, 125]#[1,4,7,10,13]
+    user_specified_n_CpGs = [1000]
+    total_num_samples_vector = [50,100,200,350,500,650,800,950]
+    effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
+    multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
+    print("Time taken: ",time.time() - starttime)
