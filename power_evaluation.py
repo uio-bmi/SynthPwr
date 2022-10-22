@@ -45,26 +45,26 @@ def calculate_delta_beta(group1_means_vector,group2_means_vector):
     return list_of_delta
 
 def unzip_workflow(workflow_num):
-    zf = zipfile.ZipFile(os.getcwd()+dirname+"SimMethyl_run_"+str(workflow_num)+".zip")
-    zip_directory = "SimMethyl_run_"+str(workflow_num)
-    if os.path.isdir(os.getcwd() + dirname+zip_directory+"/") == False:
-        os.mkdir(os.getcwd() + dirname+zip_directory+"/")
-    zf.extractall(os.getcwd() + dirname + zip_directory+"/")
-    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory+"/"+'Simulated_data.txt', index_col=0, header=0, sep=' ')
-    txt_file = open(os.getcwd()+dirname+ zip_directory+"/"+'truly_different_sites_indices.txt', "r")
+    zf = zipfile.ZipFile(os.getcwd() + dirname + "SimMethyl_run_" + str(workflow_num) + ".zip")
+    zip_directory = "SimMethyl_run_" + str(workflow_num)
+    if os.path.isdir(os.getcwd() + dirname + zip_directory +os.sep) == False:
+        os.mkdir(os.getcwd() + dirname + zip_directory + +os.sep)
+    zf.extractall(os.getcwd() + dirname + zip_directory + +os.sep)
+    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'Simulated_data.txt', index_col=0, header=0, sep=' ', on_bad_lines='skip')
+    txt_file = open(os.getcwd() + dirname + zip_directory + +os.sep + 'truly_different_sites_indices.txt', "r")
     true_CpG_locations = txt_file.read().split()
     txt_file.close()
-    user_params_df = pd.read_csv(os.getcwd()+dirname+ zip_directory+"/"+'User_Parameters.csv', index_col=0)
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
     result = [simulated_data_df, true_CpG_locations, user_params_df]
     return result
 
 def unzip_workflow_params_only(workflow_num):
-    zf = zipfile.ZipFile(os.getcwd()+dirname+"SimMethyl_run_"+str(workflow_num)+".zip")
-    zip_directory = "SimMethyl_run_"+str(workflow_num)
-    if os.path.isdir(os.getcwd() + dirname+zip_directory+"/") == False:
-        os.mkdir(os.getcwd() + dirname+zip_directory+"/")
-    zf.extractall(os.getcwd() + dirname + zip_directory+"/")
-    user_params_df = pd.read_csv(os.getcwd()+dirname+ zip_directory+"/"+'User_Parameters.csv', index_col=0)
+    zf = zipfile.ZipFile(os.getcwd() + dirname + "SimMethyl_run_" + str(workflow_num) + ".zip")
+    zip_directory = "SimMethyl_run_" + str(workflow_num)
+    if os.path.isdir(os.getcwd() + dirname + zip_directory + +os.sep) == False:
+        os.mkdir(os.getcwd() + dirname + zip_directory + +os.sep)
+    zf.extractall(os.getcwd() + dirname + zip_directory + +os.sep)
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
     user_params_df = user_params_df.T
     return user_params_df
 
@@ -116,6 +116,7 @@ def ks_test(simulated_df, n_group1):
         gr1 = simulated_df.iloc[i, 0:n_group1]
         gr2 = simulated_df.iloc[i, n_group1:]
         k_test_statistic, k_test_pvalue = scipy.stats.ks_2samp(gr1.dropna(), gr2.dropna())
+        #k_test_pvalue = dgof.ks_test(gr1,gr2,alternative = "two.sided", exact = True)
         all_p_val[i] = k_test_pvalue
     return all_p_val
 
@@ -182,12 +183,14 @@ def run_all_test(n_group1, n_group2, user_params, sim_data, beta_or_M_string):
 
     sim_data.fillna(0)
     t_test_output = tradtional_t_test(sim_data, n_group1)
-    ks_test_output = ks_test(sim_data, n_group1)
+    #ks_test_output = ks_test(sim_data, n_group1)
     limma_test_output = limma_test(sim_data, n_group1, n_group2)
     w_test_output = w_test(sim_data, n_group1)
     # all_test_output = pd.concat([pd.concat([pd.DataFrame(t_test_output), pd.DataFrame(ks_test_output)], axis=1, ignore_index=True), pd.DataFrame(limma_test_output)], axis=1, ignore_index=True)
 
-    test_dict = {"T-test": t_test_output, "KS-test": ks_test_output, "limma-test": limma_test_output,
+    test_dict = {"T-test": t_test_output,
+                 #"KS-test": ks_test_output,
+                 "limma-test": limma_test_output,
                  "W-test": w_test_output}
     all_test_output = pd.DataFrame(test_dict)
     return all_test_output
@@ -202,7 +205,9 @@ def multitest_p_adjust(all_test_df):
     for cpg in range(0, len(all_test_df.index)):
         for p_val_test in range(0, len(all_test_df.columns)):
             store_p_adjust.iloc[cpg,p_val_test] = getadjustPval(all_test_df.iloc[cpg, p_val_test])
-    store_p_adjust.columns = ["T-test", "KS-test", "limma", "W-test"]
+    store_p_adjust.columns = ["T-test",
+                              #"KS-test",
+                            "limma", "W-test"]
     return store_p_adjust
 
 # prior to confusion matrix construction, CpGs should be labeled based on two distinction characteristics: whether they are truly modified, and if their adjusted p-value is less then 0.05
@@ -234,9 +239,13 @@ def create_confusion_matrix(all_test_df, group1_means_vector,group2_means_vector
     return workflows_confusion_matrix
 
 def calc_empirical_marg_power(workflows_confusion_matrix):
-    df_all_test = pd.DataFrame(index=range(4), columns=range(2))
+    df_all_test = pd.DataFrame(index=range(3), columns=range(2))
+    #df_all_test = pd.DataFrame(index=range(4), columns=range(2))
+
     df_all_test.columns = ['Power', 'Test']
-    df_all_test['Test'] = ['T_test', 'KS_test', 'Limma_test', 'W_test']
+    df_all_test['Test'] = ['T_test',
+                           #'KS_test',
+                            'Limma_test', 'W_test']
 
     for i in range(0, len(workflows_confusion_matrix)):
         confusion_matrix = workflows_confusion_matrix[i]
@@ -270,11 +279,11 @@ def power_calc_multiple_runs(workflow):
     p_adjust_all_test = multitest_p_adjust(all_test)
     confusion_matrix = create_confusion_matrix(p_adjust_all_test,sim_data.iloc[:,0:int(n_group1)],sim_data.iloc[:,int(n_group1):], truly_different, p_cut)
     calc_power_value = pd.DataFrame(calc_empirical_marg_power(confusion_matrix))
-    calc_power_value['ID'] = np.repeat(workflow, 4).tolist()#i
+    calc_power_value['ID'] = np.repeat(workflow, 3).tolist()#i
     df_all_test = df_all_test.append(calc_power_value)
     df_all_test.columns = ['Power', 'Test', 'ID']
-    print("for multiple test runs")
-    print(df_all_test.to_string())
+    #print("for multiple test runs")
+    #print(df_all_test.to_string())
     return df_all_test
 
 
@@ -290,7 +299,7 @@ def get_all_parameters(all_zips):
     return environmental_tests_df
 
 def merge_data(all_zips, p_adjust_method_string, beta_or_M_string, p_cut):
-    pool = Pool() # user specified CPUs e.g., processes=8
+    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
     list_of_workflows = [num for num in range(all_zips)]
     environmental_tests_df = pd.DataFrame(index=range(0), columns=range(6))
     environmental_tests_df.columns = ['n_samples', 'n_CpGs', 'healthy_proportion', 'effect_size', 'n_modified_CpGs','ID']
@@ -326,11 +335,30 @@ def plot_line(data_df, y_parameter_string, varied_parameter_string, p_adjust_met
         plt.title("Sample Vs Power ("+varied_parameter+" = "+str(val)+")")
         plt.xlabel('Sample')
         plt.ylabel('Power')
-        line_plot_fig = sns.lineplot(data=selected_parameters, x=y_parameter, y='Power', hue='Test')
+        line_plot_fig = sns.lineplot(data=selected_parameters, x=y_parameter, y='Power', hue='Test', errorbar=None)
         fig = line_plot_fig.get_figure()
         fig.savefig(str("LinePlot_") + str("vs_Power_") + varied_parameter + str("_step_") +
                     str(varied_param_i) + "_" + p_adjust_method_string + "_" + beta_or_M_string + ".png", dpi=100)
         #scatter_fig = sns.scatterplot(data=selected_parameters_df, x=y_parameter, y=selected_parameters_df['Power'], hue=selected_parameters_df['Test'])
+
+def plot_every_effect_line(data_df, nsample_string, effect_string, p_adjust_method_string, beta_or_M_string):
+    selected_parameters_df = data_df.loc[:,['Power','Test',effect_string,nsample_string]]
+    y_parameter = nsample_string
+    for idx, val in enumerate(selected_parameters_df['Test'].unique()):
+        plt.figure()
+        selected_parameters = selected_parameters_df.loc[selected_parameters_df['Test'] == val,:]
+        varied_param_i = val
+        print("One unique value of varied parameter: ", val)
+        print(selected_parameters.to_string())
+        plt.title("Sample Vs Power (all effect sizes for "+val+")")
+        plt.xlabel('Sample')
+        plt.ylabel('Power')
+        #print("extra testing")
+        #print(selected_parameters['effect_size'])
+        line_plot_fig = sns.lineplot(data=selected_parameters, x=y_parameter, y='Power', hue='effect_size', errorbar=None, legend='full')
+        fig = line_plot_fig.get_figure()
+        fig.savefig(str("LinePlot_") + str("vs_Power_") + "alleffects" + str("_steptest_") +
+                    str(varied_param_i) + "_" + p_adjust_method_string + "_" + beta_or_M_string + ".png", dpi=100)
 
 def heat_map(data_df, x_parameter_string, y_parameter_string, p_adjust_method_string, test_string, beta_or_M_string):
     plt.figure()
@@ -359,15 +387,18 @@ def PowerCalc(num_zips, p_adjust_method_string, beta_or_M_string, y_parameter_st
 
     for test in test_vector_string:
         heat_map(all_test_all_zips, x_parameter_string, y_parameter_string, p_adjust_method_string,test,beta_or_M_string)
+    plot_every_effect_line(all_test_all_zips, "n_samples", "effect_size",p_adjust_method_string,beta_or_M_string)
 
 if __name__ == '__main__':
-    num_zips = 100 # number of simulated data environmental workflows
+    num_zips = 512 # number of simulated data environmental workflows
     p_adjust_method_string = "fdr" #"none"/"BH"/"bonferroni"/"fdr"
     beta_or_M_string = "M" #"beta"/"M"
     y_parameter_string = "n_samples" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
-    x_parameter_string = "effect_size" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
+    x_parameter_string = "n_modified_CpGs" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     color_string = "Power"
-    test_vector_string = ["T_test","Limma_test", "KS_test", "W_test"]
+    test_vector_string = ["T_test","Limma_test",
+                          #"KS_test",
+                          "W_test"]
     p_cut = 0.05 #0.01, 0.1, 0.05
 
     PowerCalc(num_zips,p_adjust_method_string,beta_or_M_string,y_parameter_string,x_parameter_string,color_string,test_vector_string,p_cut)
