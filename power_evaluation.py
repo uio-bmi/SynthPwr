@@ -48,23 +48,23 @@ def unzip_workflow(workflow_num):
     zf = zipfile.ZipFile(os.getcwd() + dirname + "SimMethyl_run_" + str(workflow_num) + ".zip")
     zip_directory = "SimMethyl_run_" + str(workflow_num)
     if os.path.isdir(os.getcwd() + dirname + zip_directory +os.sep) == False:
-        os.mkdir(os.getcwd() + dirname + zip_directory + +os.sep)
-    zf.extractall(os.getcwd() + dirname + zip_directory + +os.sep)
-    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'Simulated_data.txt', index_col=0, header=0, sep=' ', on_bad_lines='skip')
-    txt_file = open(os.getcwd() + dirname + zip_directory + +os.sep + 'truly_different_sites_indices.txt', "r")
+        os.mkdir(os.getcwd() + dirname + zip_directory + os.sep)
+    zf.extractall(os.getcwd() + dirname + zip_directory + os.sep)
+    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'Simulated_data.txt', index_col=0, header=0, sep=' ', on_bad_lines='skip')
+    txt_file = open(os.getcwd() + dirname + zip_directory + os.sep + 'truly_different_sites_indices.txt', "r")
     true_CpG_locations = txt_file.read().split()
     txt_file.close()
-    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
     result = [simulated_data_df, true_CpG_locations, user_params_df]
     return result
 
 def unzip_workflow_params_only(workflow_num):
     zf = zipfile.ZipFile(os.getcwd() + dirname + "SimMethyl_run_" + str(workflow_num) + ".zip")
     zip_directory = "SimMethyl_run_" + str(workflow_num)
-    if os.path.isdir(os.getcwd() + dirname + zip_directory + +os.sep) == False:
-        os.mkdir(os.getcwd() + dirname + zip_directory + +os.sep)
-    zf.extractall(os.getcwd() + dirname + zip_directory + +os.sep)
-    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + +os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
+    if os.path.isdir(os.getcwd() + dirname + zip_directory + os.sep) == False:
+        os.mkdir(os.getcwd() + dirname + zip_directory + os.sep)
+    zf.extractall(os.getcwd() + dirname + zip_directory + os.sep)
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
     user_params_df = user_params_df.T
     return user_params_df
 
