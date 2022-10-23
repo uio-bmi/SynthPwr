@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib
-matplotlib.use('TkAgg')
 import time
 import matplotlib.pyplot as plt
 import rpy2.robjects as robjects
@@ -193,6 +192,8 @@ def run_all_test(n_group1, n_group2, user_params, sim_data, beta_or_M_string):
                  "limma-test": limma_test_output,
                  "W-test": w_test_output}
     all_test_output = pd.DataFrame(test_dict)
+    print("Multiple tests")
+    print(all_test_output)
     return all_test_output
 
 def getadjustPval(p_val_vector):
@@ -214,7 +215,7 @@ def multitest_p_adjust(all_test_df):
 # The input is the vector with observed values within the simulated data. The output is a boolean which represents if the observation is signficantly different between the two groups (0) and not significant (1)
 def create_predicted_vector(p_val_vector, group1_means_vector,group2_means_vector, p_cut):
     delta_beta_cpg = calculate_delta_beta(group1_means_vector,group2_means_vector)
-    boolean_predicted_vector = [row for row in range(0, len(p_val_vector.index))]
+    boolean_predicted_vector = [False for row in range(0, len(p_val_vector.index))]
     for i in range(0, len(delta_beta_cpg)):
         if delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] < 0.05:
             boolean_predicted_vector[i] = True

@@ -19,10 +19,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.vectors import DataFrame, StrVector
 from rpy2.robjects.packages import importr
-
-#from power_evaluation import limma_test
-
-user_specified_n_CpGs = [1000]
+user_specified_n_CpGs = [371377]
 
 pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -31,6 +28,7 @@ starttime = time.time()
 dirname = os.sep+"dgp_experiments"+os.sep
 #GeoQuery emulated retrieval
 robjects.r('''
+            BiocManager::install("GEOquery", update=FALSE)
             library(GEOquery)
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
@@ -57,9 +55,6 @@ beta_matrix = pd.DataFrame(beta_matrix_pull()[0]).transpose()
 beta_matrix.columns = list_of_samples
 #beta_matrix.index = list_of_cpgs
 
-# Retaining only controls
-#control_samples = ["GSM2057626","GSM2057627","GSM2057628","GSM2057629","GSM2057630","GSM2057631","GSM2057632","GSM2057633","GSM2057634", "GSM2057635", "GSM2057636","GSM2057637", "GSM2057638", "GSM2057639","GSM2057640", "GSM2057641","GSM2057642", "GSM2057643", "GSM2057662", "GSM2057663", "GSM2057664", "GSM2057665", "GSM2057666", "GSM2057667", "GSM2057668", "GSM2057669", "GSM2057670", "GSM2057671", "GSM2057672", "GSM2057673", "GSM2057674", "GSM2057675", "GSM2057676", "GSM2057677", "GSM2057678", "GSM2057679", "GSM2057680", "GSM2057681", "GSM2057682", "GSM2057683", "GSM2057684", "GSM2057685", "GSM2057686", "GSM2057687", "GSM2057688", "GSM2057689", "GSM2057690", "GSM2057691", "GSM2057692", "GSM2057693", "GSM2057694", "GSM2057695", "GSM2057696", "GSM2057697", "GSM2057698", "GSM2057699", "GSM2057700", "GSM2057701", "GSM2057702", "GSM2057703", "GSM2057704", "GSM2057705", "GSM2057706", "GSM2057707", "GSM2057708", "GSM2057709", "GSM2057758", "GSM2057760", "GSM2057762", "GSM2057764", "GSM2057766", "GSM2057768", "GSM2057770", "GSM2057772", "GSM2057774", "GSM2057776", "GSM2057778", "GSM2057780", "GSM2057782", "GSM2057784", "GSM2057786", "GSM2057788", "GSM2057790", "GSM2057792", "GSM2057794", "GSM2057796", "GSM2057798", "GSM2057800", "GSM2057802", "GSM2057804", "GSM2057806", "GSM2057808", "GSM2057810", "GSM2057812", "GSM2057814", "GSM2057816"]
-#beta_matrix = beta_matrix[control_samples]
 print("The reference data - Beta matrix:")
 print(beta_matrix.shape)
 print(beta_matrix)
