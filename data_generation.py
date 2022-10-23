@@ -28,7 +28,9 @@ starttime = time.time()
 dirname = os.sep+"dgp_experiments"+os.sep
 #GeoQuery emulated retrieval
 robjects.r('''
-            BiocManager::install("GEOquery", update=FALSE)
+            if (!require("BiocManager", quietly = TRUE))
+            install.packages("BiocManager")
+            library(BiocManager)
             library(GEOquery)
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
