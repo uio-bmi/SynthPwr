@@ -30,6 +30,7 @@ dirname = os.sep+"dgp_experiments"+os.sep
 robjects.r('''
             if (!require("BiocManager", quietly = TRUE))
             install.packages("BiocManager")
+            install.packages("GEOquery")
             library(BiocManager)
             library(GEOquery)
             library(Biobase)
