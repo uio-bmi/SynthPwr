@@ -31,6 +31,7 @@ robjects.r('''
             if (!require("BiocManager", quietly = TRUE))
             install.packages("BiocManager")
             install.packages("GEOquery")
+            install.packages('R.utils')
             library(BiocManager)
             library(GEOquery)
             library(Biobase)
