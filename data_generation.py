@@ -116,21 +116,21 @@ def get_group_number(healthy_proportion, total_num_samples):
 #Simulate beta values for every CpG across all samples. Due to the range of the real beta values (0 and 1), truncate/adjust the values within the range
 def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
     all_cpgs = pd.DataFrame()
-    cpg_name = pd.DataFrame()
+    #cpg_name = pd.DataFrame()
     means_vector_df = pd.DataFrame(means_vector)
     stds_vector_df = pd.DataFrame(stds_vector)
 
     for index in range(0, len(means_vector_df.index)):
         cpg_i = np.random.normal(loc=means_vector_df.iloc[index], scale=stds_vector_df.iloc[index], size=int(number_of_samples_in_group))
         all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i.tolist()).T)
-        cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
+        #cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
     for index, row in all_cpgs.iterrows():
         for j, value in all_cpgs.iloc[index].items():
             if float(value) > float(1.0):
                 all_cpgs.iloc[index, j] = np.nanmax(beta_matrix.iloc[index])
             elif float(value) < float(0):
                 all_cpgs.iloc[index, j] = np.nanmin(beta_matrix.iloc[index])
-    all_cpgs.index = cpg_name.iloc[:,0].tolist()
+    #all_cpgs.index = cpg_name.iloc[:,0].tolist()
     return all_cpgs
 
 #Simulate methylation data for every group based on the shape parameters specific to the group (different means and common standard deviation). The output is data frame with all samples and all CpGs.
@@ -191,11 +191,15 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
 
     simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
     simulated_data.columns = simulated_data_columns
-    file_name_simulated_data = "Simulated_data.txt"
+    file_name_simulated_data = "Simulated_data.csv"
 
     print("The synthetic data - Beta matrix:")
     print(simulated_data)
-    simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=True,header=True, sep=' ')
+    simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep=',')
+    #with open(os.getcwd()+dirname+file_name_simulated_data, 'w') as f:
+    #    simulatedWrite = simulated_data.to_string(header=True, index=False)
+    #    print(simulatedWrite.to_string())
+    #    f.write(simulatedWrite)
 
     file_name_user_parameters = "User_Parameters.csv"
     file_name_truly_modified_indices = "truly_different_sites_indices.txt"
@@ -211,7 +215,7 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
 def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
     list_of_workflows = [num for num in range(0, len(combination_df.index))]
-    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=60) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
     #print(result)
@@ -225,7 +229,7 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
 
 def simulator_pool(workflow):
     healthy_proportion = [0.5]
-    num_true_modified = [50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [350]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
     effect_size_vector = [0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
@@ -239,7 +243,7 @@ def simulator_pool(workflow):
 
 if __name__ == '__main__':
     healthy_proportion = [0.5]
-    num_true_modified = [50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [350]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]#[1000]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
     effect_size_vector = [0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]

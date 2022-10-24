@@ -49,11 +49,11 @@ def unzip_workflow(workflow_num):
     if os.path.isdir(os.getcwd() + dirname + zip_directory +os.sep) == False:
         os.mkdir(os.getcwd() + dirname + zip_directory + os.sep)
     zf.extractall(os.getcwd() + dirname + zip_directory + os.sep)
-    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'Simulated_data.txt', index_col=0, header=0, sep=' ', on_bad_lines='skip')
+    simulated_data_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'Simulated_data.csv', header=0, sep=',')
     txt_file = open(os.getcwd() + dirname + zip_directory + os.sep + 'truly_different_sites_indices.txt', "r")
     true_CpG_locations = txt_file.read().split()
     txt_file.close()
-    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0)
     result = [simulated_data_df, true_CpG_locations, user_params_df]
     return result
 
@@ -63,7 +63,7 @@ def unzip_workflow_params_only(workflow_num):
     if os.path.isdir(os.getcwd() + dirname + zip_directory + os.sep) == False:
         os.mkdir(os.getcwd() + dirname + zip_directory + os.sep)
     zf.extractall(os.getcwd() + dirname + zip_directory + os.sep)
-    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0, on_bad_lines='skip')
+    user_params_df = pd.read_csv(os.getcwd() + dirname + zip_directory + os.sep + 'User_Parameters.csv', index_col=0)
     user_params_df = user_params_df.T
     return user_params_df
 
@@ -182,13 +182,13 @@ def run_all_test(n_group1, n_group2, user_params, sim_data, beta_or_M_string):
 
     sim_data.fillna(0)
     t_test_output = tradtional_t_test(sim_data, n_group1)
-    #ks_test_output = ks_test(sim_data, n_group1)
+    ks_test_output = ks_test(sim_data, n_group1)
     limma_test_output = limma_test(sim_data, n_group1, n_group2)
     w_test_output = w_test(sim_data, n_group1)
     # all_test_output = pd.concat([pd.concat([pd.DataFrame(t_test_output), pd.DataFrame(ks_test_output)], axis=1, ignore_index=True), pd.DataFrame(limma_test_output)], axis=1, ignore_index=True)
 
     test_dict = {"T-test": t_test_output,
-                 #"KS-test": ks_test_output,
+                 "KS-test": ks_test_output,
                  "limma-test": limma_test_output,
                  "W-test": w_test_output}
     all_test_output = pd.DataFrame(test_dict)
@@ -207,7 +207,7 @@ def multitest_p_adjust(all_test_df):
         for p_val_test in range(0, len(all_test_df.columns)):
             store_p_adjust.iloc[cpg,p_val_test] = getadjustPval(all_test_df.iloc[cpg, p_val_test])
     store_p_adjust.columns = ["T-test",
-                              #"KS-test",
+                              "KS-test",
                             "limma", "W-test"]
     return store_p_adjust
 
@@ -240,12 +240,12 @@ def create_confusion_matrix(all_test_df, group1_means_vector,group2_means_vector
     return workflows_confusion_matrix
 
 def calc_empirical_marg_power(workflows_confusion_matrix):
-    df_all_test = pd.DataFrame(index=range(3), columns=range(2))
+    df_all_test = pd.DataFrame(index=range(4), columns=range(2))
     #df_all_test = pd.DataFrame(index=range(4), columns=range(2))
 
     df_all_test.columns = ['Power', 'Test']
     df_all_test['Test'] = ['T_test',
-                           #'KS_test',
+                           'KS_test',
                             'Limma_test', 'W_test']
 
     for i in range(0, len(workflows_confusion_matrix)):
@@ -280,15 +280,13 @@ def power_calc_multiple_runs(workflow):
     p_adjust_all_test = multitest_p_adjust(all_test)
     confusion_matrix = create_confusion_matrix(p_adjust_all_test,sim_data.iloc[:,0:int(n_group1)],sim_data.iloc[:,int(n_group1):], truly_different, p_cut)
     calc_power_value = pd.DataFrame(calc_empirical_marg_power(confusion_matrix))
-    calc_power_value['ID'] = np.repeat(workflow, 3).tolist()#i
+    calc_power_value['ID'] = np.repeat(workflow, 4).tolist()#i
     df_all_test = df_all_test.append(calc_power_value)
     df_all_test.columns = ['Power', 'Test', 'ID']
     #print("for multiple test runs")
     #print(df_all_test.to_string())
     return df_all_test
 
-
-# fills a matrix with the parameters as the columns and the
 def get_all_parameters(all_zips):
     environmental_tests_df = pd.DataFrame(index=range(0), columns=range(6))
     environmental_tests_df.columns = ['n_samples','n_CpGs','healthy_proportion','effect_size','n_modified_CpGs', 'ID']
@@ -300,7 +298,7 @@ def get_all_parameters(all_zips):
     return environmental_tests_df
 
 def merge_data(all_zips, p_adjust_method_string, beta_or_M_string, p_cut):
-    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=60) # user specified CPUs e.g., processes=8
     list_of_workflows = [num for num in range(all_zips)]
     environmental_tests_df = pd.DataFrame(index=range(0), columns=range(6))
     environmental_tests_df.columns = ['n_samples', 'n_CpGs', 'healthy_proportion', 'effect_size', 'n_modified_CpGs','ID']
@@ -391,14 +389,14 @@ def PowerCalc(num_zips, p_adjust_method_string, beta_or_M_string, y_parameter_st
     plot_every_effect_line(all_test_all_zips, "n_samples", "effect_size",p_adjust_method_string,beta_or_M_string)
 
 if __name__ == '__main__':
-    num_zips = 512 # number of simulated data environmental workflows
+    num_zips = 64 # number of simulated data environmental workflows
     p_adjust_method_string = "fdr" #"none"/"BH"/"bonferroni"/"fdr"
     beta_or_M_string = "M" #"beta"/"M"
     y_parameter_string = "n_samples" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
-    x_parameter_string = "n_modified_CpGs" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
+    x_parameter_string = "effect_size" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     color_string = "Power"
     test_vector_string = ["T_test","Limma_test",
-                          #"KS_test",
+                          "KS_test",
                           "W_test"]
     p_cut = 0.05 #0.01, 0.1, 0.05
 
