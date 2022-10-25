@@ -28,10 +28,11 @@ starttime = time.time()
 dirname = os.sep+"dgp_experiments"+os.sep
 #GeoQuery emulated retrieval
 robjects.r('''
+            chooseCRANmirror(81)
             if (!require("BiocManager", quietly = TRUE))
-            install.packages("BiocManager")
-            install.packages("GEOquery")
-            install.packages('R.utils')
+            install.packages("BiocManager", repos='http://cran.us.r-project.org')
+            install.packages("GEOquery", repos='http://cran.us.r-project.org')
+            install.packages('R.utils', repos='http://cran.us.r-project.org')
             library(BiocManager)
             library(GEOquery)
             library(Biobase)
