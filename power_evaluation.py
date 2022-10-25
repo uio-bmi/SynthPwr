@@ -162,7 +162,7 @@ def logit_transformation(beta_matrix):
     robjects.r('''
                 chooseCRANmirror(ind = 1)
                 BiocManager::repositories(site_repository = 'https://cloud.r-project.org/')
-                BiocManager::install("ENmix", update=FALSE)
+                BiocManager::install("ENmix", update=True)
                 install.packages('ENmix', repos='https://cloud.r-project.org/')
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
