@@ -160,6 +160,7 @@ def limma_test(simulated_df, n_group1, n_group2):
 
 def logit_transformation(beta_matrix):
     robjects.r('''
+                if (!requireNamespace("BiocManager", quietly = TRUE))
                 BiocManager::install("ENmix", update=False)
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
