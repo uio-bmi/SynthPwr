@@ -164,7 +164,7 @@ def logit_transformation(beta_matrix):
                 if (!requireNamespace("BiocManager", quietly = TRUE))
                 BiocManager::valid()
                 BiocManager::install("ENmix")
-                install.packages('ENmix', dependencies = TRUE)
+                install.packages('ENmix', update=False)
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
                 m_matrix = as.data.frame(B2M(beta_matrix))
