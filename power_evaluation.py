@@ -161,8 +161,7 @@ def limma_test(simulated_df, n_group1, n_group2):
 def logit_transformation(beta_matrix):
     robjects.r('''
                 chooseCRANmirror(ind = 1)
-                BiocManager::repositories(site_repository = 'https://cloud.r-project.org/')
-                BiocManager::install("ENmix", update=True)
+                BiocManager::install("ENmix", update=False)
                 install.packages('ENmix', repos='https://cloud.r-project.org/')
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
