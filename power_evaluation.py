@@ -161,7 +161,8 @@ def limma_test(simulated_df, n_group1, n_group2):
 def logit_transformation(beta_matrix):
     robjects.r('''
                 if (!requireNamespace("BiocManager", quietly = TRUE))
-                BiocManager::install("ENmix", update=False)
+                if (!requireNamespace("ENmix", quietly = TRUE))
+                BiocManager::install("ENmix", update=True)
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
                 m_matrix = as.data.frame(B2M(beta_matrix))
