@@ -393,7 +393,7 @@ def PowerCalc(num_zips, p_adjust_method_string, beta_or_M_string, y_parameter_st
     plot_every_effect_line(all_test_all_zips, "n_samples", "effect_size",p_adjust_method_string,beta_or_M_string)
 
 if __name__ == '__main__':
-    num_zips = 64 # number of simulated data environmental workflows
+    num_zips = 16 # number of simulated data environmental workflows
     p_adjust_method_string = "fdr" #"none"/"BH"/"bonferroni"/"fdr"
     beta_or_M_string = "M" #"beta"/"M"
     y_parameter_string = "n_samples" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
