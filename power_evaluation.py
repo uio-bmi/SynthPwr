@@ -26,7 +26,7 @@ starttime = time.time()
 pandas2ri.activate()
 dirname = os.sep+"power_experiments"+os.sep
 base = importr('base')
-packnames = ('stats', 'caret')
+packnames = ('stats', 'caret', 'ENmix')
 names_to_install = [x for x in packnames if not rpackages.isinstalled(x)]
 if len(names_to_install) > 0:
     robjects.r.options(download_file_method='curl')
@@ -36,6 +36,7 @@ if len(names_to_install) > 0:
 
 stats = importr('stats')
 caret = importr('caret')
+ENmix = importr('ENmix')
 
 def calculate_delta_beta(group1_means_vector,group2_means_vector):
     list_of_delta = [row for row in range(0, len(group1_means_vector.index))]
@@ -159,18 +160,20 @@ def limma_test(simulated_df, n_group1, n_group2):
     return pd_from_r_df.iloc[:,0].tolist()
 
 def logit_transformation(beta_matrix):
-    robjects.r('''
-                if (!requireNamespace("BiocManager", quietly = TRUE))
-                BiocManager::install("ENmix")
-                install.packages('ENmix', repos='https://cloud.r-project.org/')
-                library(ENmix)
-                ENmix_transform <- function(beta_matrix, verbose=FALSE) {
-                m_matrix = as.data.frame(B2M(beta_matrix))
-                }
-                ''')
-    logit_result = robjects.r['ENmix_transform']
-    m_matrix = logit_result(beta_matrix)
-    return m_matrix
+    #robjects.r('''
+    #            if (!requireNamespace("BiocManager", quietly = TRUE))
+    #            BiocManager::install("ENmix")
+    #            install.packages('ENmix', repos='https://cloud.r-project.org/')
+    #            library(ENmix)
+    #            ENmix_transform <- function(beta_matrix, verbose=FALSE) {
+    #            m_matrix = as.data.frame(B2M(beta_matrix))
+    #            }
+    #            ''')
+    #logit_result = robjects.r['ENmix_transform']
+    logit_result = ENmix.B2M(beta_matrix)
+    #m_matrix = logit_result(beta_matrix)
+    #return m_matrix
+    return logit_result
 
 #Running all the tests to compare the two groups for every CpG site based on either transformed or original values. The output is p-values for every CpG site and for every test
 def run_all_test(n_group1, n_group2, user_params, sim_data, beta_or_M_string):
