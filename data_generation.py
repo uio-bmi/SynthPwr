@@ -28,11 +28,11 @@ starttime = time.time()
 dirname = os.sep+"dgp_experiments"+os.sep
 #GeoQuery emulated retrieval
 robjects.r('''
-            chooseCRANmirror(81)
+            chooseCRANmirror(ind = 1)
             if (!require("BiocManager", quietly = TRUE))
-            install.packages("BiocManager", repos='http://cran.us.r-project.org')
-            install.packages("GEOquery", repos='http://cran.us.r-project.org')
-            install.packages('R.utils', repos='http://cran.us.r-project.org')
+            install.packages("BiocManager", repos='https://cloud.r-project.org/')
+            install.packages("GEOquery", repos='https://cloud.r-project.org/')
+            install.packages('R.utils', repos='https://cloud.r-project.org/')
             library(BiocManager)
             library(GEOquery)
             library(Biobase)
@@ -216,7 +216,7 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
 def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
     list_of_workflows = [num for num in range(0, len(combination_df.index))]
-    pool = Pool(processes=60) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
     #print(result)

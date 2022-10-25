@@ -140,6 +140,8 @@ def limma_test(simulated_df, n_group1, n_group2):
     design_matrix.columns = ['Group1','Group2']
 
     robjects.r('''
+            chooseCRANmirror(ind = 1)
+            install.packages('limma', repos='https://cloud.r-project.org/')
             library(limma)
             limma_test <- function(simulated_df, design_matrix, verbose=FALSE) {
             contrast_matrix = makeContrasts(Diff = Group2 - Group1, levels = design_matrix)
@@ -298,7 +300,7 @@ def get_all_parameters(all_zips):
     return environmental_tests_df
 
 def merge_data(all_zips, p_adjust_method_string, beta_or_M_string, p_cut):
-    pool = Pool(processes=60) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     list_of_workflows = [num for num in range(all_zips)]
     environmental_tests_df = pd.DataFrame(index=range(0), columns=range(6))
     environmental_tests_df.columns = ['n_samples', 'n_CpGs', 'healthy_proportion', 'effect_size', 'n_modified_CpGs','ID']
