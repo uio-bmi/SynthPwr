@@ -141,8 +141,6 @@ def limma_test(simulated_df, n_group1, n_group2):
     design_matrix.columns = ['Group1','Group2']
 
     robjects.r('''
-            chooseCRANmirror(ind = 1)
-            install.packages('limma', repos='https://cloud.r-project.org/')
             library(limma)
             limma_test <- function(simulated_df, design_matrix, verbose=FALSE) {
             contrast_matrix = makeContrasts(Diff = Group2 - Group1, levels = design_matrix)
