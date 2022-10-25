@@ -162,7 +162,8 @@ def logit_transformation(beta_matrix):
     robjects.r('''
                 chooseCRANmirror(ind = 1)
                 if (!requireNamespace("BiocManager", quietly = TRUE))
-                BiocManager::install("ENmix", update=False)
+                BiocManager::valid()
+                BiocManager::install("ENmix")
                 install.packages('ENmix', dependencies = TRUE)
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
