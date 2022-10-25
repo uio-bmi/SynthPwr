@@ -163,7 +163,7 @@ def logit_transformation(beta_matrix):
                 chooseCRANmirror(ind = 1)
                 BiocManager::repositories(site_repository = 'https://cloud.r-project.org/')
                 BiocManager::install("ENmix", update=FALSE)
-                install.packages('limma', repos='https://cloud.r-project.org/')
+                install.packages('ENmix', repos='https://cloud.r-project.org/')
                 library(ENmix)
                 ENmix_transform <- function(beta_matrix, verbose=FALSE) {
                 m_matrix = as.data.frame(B2M(beta_matrix))
