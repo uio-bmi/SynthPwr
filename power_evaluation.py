@@ -187,13 +187,13 @@ def run_all_test(n_group1, n_group2, user_params, sim_data, beta_or_M_string):
 
     sim_data.fillna(0)
     t_test_output = tradtional_t_test(sim_data, n_group1)
-    ks_test_output = ks_test(sim_data, n_group1)
+    #ks_test_output = ks_test(sim_data, n_group1)
     limma_test_output = limma_test(sim_data, n_group1, n_group2)
     w_test_output = w_test(sim_data, n_group1)
     # all_test_output = pd.concat([pd.concat([pd.DataFrame(t_test_output), pd.DataFrame(ks_test_output)], axis=1, ignore_index=True), pd.DataFrame(limma_test_output)], axis=1, ignore_index=True)
 
     test_dict = {"T-test": t_test_output,
-                 "KS-test": ks_test_output,
+                 #"KS-test": ks_test_output,
                  "limma-test": limma_test_output,
                  "W-test": w_test_output}
     all_test_output = pd.DataFrame(test_dict)
@@ -212,7 +212,7 @@ def multitest_p_adjust(all_test_df):
         for p_val_test in range(0, len(all_test_df.columns)):
             store_p_adjust.iloc[cpg,p_val_test] = getadjustPval(all_test_df.iloc[cpg, p_val_test])
     store_p_adjust.columns = ["T-test",
-                              "KS-test",
+                              #"KS-test",
                             "limma", "W-test"]
     return store_p_adjust
 
@@ -245,12 +245,12 @@ def create_confusion_matrix(all_test_df, group1_means_vector,group2_means_vector
     return workflows_confusion_matrix
 
 def calc_empirical_marg_power(workflows_confusion_matrix):
-    df_all_test = pd.DataFrame(index=range(4), columns=range(2))
+    df_all_test = pd.DataFrame(index=range(3), columns=range(2))
     #df_all_test = pd.DataFrame(index=range(4), columns=range(2))
 
     df_all_test.columns = ['Power', 'Test']
     df_all_test['Test'] = ['T_test',
-                           'KS_test',
+                           #'KS_test',
                             'Limma_test', 'W_test']
 
     for i in range(0, len(workflows_confusion_matrix)):
@@ -285,7 +285,7 @@ def power_calc_multiple_runs(workflow):
     p_adjust_all_test = multitest_p_adjust(all_test)
     confusion_matrix = create_confusion_matrix(p_adjust_all_test,sim_data.iloc[:,0:int(n_group1)],sim_data.iloc[:,int(n_group1):], truly_different, p_cut)
     calc_power_value = pd.DataFrame(calc_empirical_marg_power(confusion_matrix))
-    calc_power_value['ID'] = np.repeat(workflow, 4).tolist()#i
+    calc_power_value['ID'] = np.repeat(workflow, 3).tolist()#i
     df_all_test = df_all_test.append(calc_power_value)
     df_all_test.columns = ['Power', 'Test', 'ID']
     #print("for multiple test runs")
@@ -401,7 +401,7 @@ if __name__ == '__main__':
     x_parameter_string = "effect_size" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     color_string = "Power"
     test_vector_string = ["T_test","Limma_test",
-                          "KS_test",
+                          #"KS_test",
                           "W_test"]
     p_cut = 0.05 #0.01, 0.1, 0.05
 
