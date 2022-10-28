@@ -32,7 +32,7 @@ robjects.r('''
             if (!require("BiocManager", quietly = TRUE))
             install.packages("BiocManager", repos='https://cloud.r-project.org/')
             install.packages("GEOquery", repos='https://cloud.r-project.org/')
-            install.packages('R.utils')
+            install.packages("R.utils")
             library(BiocManager)
             library(GEOquery)
             library(Biobase)
