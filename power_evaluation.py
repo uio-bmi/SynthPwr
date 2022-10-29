@@ -222,13 +222,10 @@ def create_predicted_vector(p_val_vector, group1_means_vector,group2_means_vecto
     delta_beta_cpg = calculate_delta_beta(group1_means_vector,group2_means_vector)
     boolean_predicted_vector = [False for row in range(0, len(p_val_vector.index))]
     for i in range(0, len(delta_beta_cpg)):
-        #if delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] < 0.05:
-        if p_val_vector.iloc[i] < 0.05:
+        if delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] < 0.05:
             boolean_predicted_vector[i] = True
-        else:
+        elif delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] > 0.05:
             boolean_predicted_vector[i] = False
-        #elif delta_beta_cpg[i] >= 0.01 and p_val_vector.iloc[i] > 0.05:
-        #    boolean_predicted_vector[i] = False
     return boolean_predicted_vector
 
 def create_expected_val_vector(p_val_df, truly_different):

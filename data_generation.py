@@ -180,12 +180,10 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
     vector_stds = means_stds_by_indicies_sample.iloc[:, 1]
 
-
     print("Inducing differences between groups...")
     vector_of_affected_means = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size)
     g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
     g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
-
 
     print("Generating cpgs for groups...")
     simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_stds, g1_number_of_samples, g2_number_of_samples)
@@ -219,7 +217,6 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
     pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
-    #print(result)
     # Serial Version
     #for i in range(len(combination_df)):
     #    print("Running environmental setup using parameters:")
@@ -230,10 +227,10 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
 
 def simulator_pool(workflow):
     healthy_proportion = [0.5]
-    num_true_modified = [350]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
+    effect_size_vector = [0.05]#[0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,
                                           num_true_modified, user_specified_n_CpGs)
     print("Running environmental setup using parameters:")
@@ -244,9 +241,9 @@ def simulator_pool(workflow):
 
 if __name__ == '__main__':
     healthy_proportion = [0.5]
-    num_true_modified = [350]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]#[1000]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
+    effect_size_vector = [0.05]#[0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
     multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
     print("Time taken: ",time.time() - starttime)
