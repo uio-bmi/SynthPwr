@@ -1,5 +1,6 @@
 import csv
 import itertools
+import math
 import os
 from zipfile import ZipFile
 import numpy as np
@@ -9,7 +10,6 @@ import time
 import warnings
 from multiprocessing import Pool
 from itertools import product
-
 import rpy2
 import rpy2.robjects as robjects
 import rpy2.robjects.packages as rpackages
@@ -26,7 +26,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 starttime = time.time()
 dirname = os.sep+"dgp_experiments"+os.sep
-#GeoQuery emulated retrieval
 robjects.r('''
             chooseCRANmirror(ind = 1)
             if (!require("BiocManager", quietly = TRUE))
@@ -38,9 +37,9 @@ robjects.r('''
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
             GEO_real_world_data <- "GSE77718"
+            control_samples <- c('GSM2057626','GSM2057627','GSM2057628','GSM2057629','GSM2057630','GSM2057631','GSM2057632','GSM2057633','GSM2057634','GSM2057635','GSM2057636','GSM2057637','GSM2057638','GSM2057639','GSM2057640','GSM2057641','GSM2057642','GSM2057643','GSM2057662','GSM2057663','GSM2057664','GSM2057665','GSM2057666','GSM2057667','GSM2057668','GSM2057669','GSM2057670','GSM2057671','GSM2057672','GSM2057673','GSM2057674','GSM2057675','GSM2057676','GSM2057677','GSM2057678','GSM2057679','GSM2057680','GSM2057681','GSM2057682','GSM2057683','GSM2057684','GSM2057685','GSM2057686','GSM2057687','GSM2057688','GSM2057689','GSM2057690','GSM2057691','GSM2057692','GSM2057693','GSM2057694','GSM2057695','GSM2057696','GSM2057697','GSM2057698','GSM2057699','GSM2057700','GSM2057701','GSM2057702','GSM2057703','GSM2057704','GSM2057705','GSM2057706','GSM2057707','GSM2057708','GSM2057709','GSM2057758','GSM2057760','GSM2057762','GSM2057764','GSM2057766','GSM2057768','GSM2057770','GSM2057772','GSM2057774','GSM2057776','GSM2057778','GSM2057780','GSM2057782','GSM2057784','GSM2057786','GSM2057788','GSM2057790','GSM2057792','GSM2057794','GSM2057796','GSM2057798','GSM2057800','GSM2057802','GSM2057804','GSM2057806','GSM2057808','GSM2057810','GSM2057812','GSM2057814','GSM2057816')
             gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE)
             beta_matrix <- as.data.frame(exprs(gset[[1]]))
-            control_samples <- c('GSM2057626','GSM2057627','GSM2057628','GSM2057629','GSM2057630','GSM2057631','GSM2057632','GSM2057633','GSM2057634','GSM2057635','GSM2057636','GSM2057637','GSM2057638','GSM2057639','GSM2057640','GSM2057641','GSM2057642','GSM2057643','GSM2057662','GSM2057663','GSM2057664','GSM2057665','GSM2057666','GSM2057667','GSM2057668','GSM2057669','GSM2057670','GSM2057671','GSM2057672','GSM2057673','GSM2057674','GSM2057675','GSM2057676','GSM2057677','GSM2057678','GSM2057679','GSM2057680','GSM2057681','GSM2057682','GSM2057683','GSM2057684','GSM2057685','GSM2057686','GSM2057687','GSM2057688','GSM2057689','GSM2057690','GSM2057691','GSM2057692','GSM2057693','GSM2057694','GSM2057695','GSM2057696','GSM2057697','GSM2057698','GSM2057699','GSM2057700','GSM2057701','GSM2057702','GSM2057703','GSM2057704','GSM2057705','GSM2057706','GSM2057707','GSM2057708','GSM2057709','GSM2057758','GSM2057760','GSM2057762','GSM2057764','GSM2057766','GSM2057768','GSM2057770','GSM2057772','GSM2057774','GSM2057776','GSM2057778','GSM2057780','GSM2057782','GSM2057784','GSM2057786','GSM2057788','GSM2057790','GSM2057792','GSM2057794','GSM2057796','GSM2057798','GSM2057800','GSM2057802','GSM2057804','GSM2057806','GSM2057808','GSM2057810','GSM2057812','GSM2057814','GSM2057816')
             beta_matrix <- beta_matrix[,control_samples]
             sample_names <- colnames(beta_matrix)
             cpg_names <- rownames(beta_matrix)
@@ -48,6 +47,7 @@ robjects.r('''
             }
             get_betamatrix()
             ''')
+
 beta_matrix_pull = robjects.r['get_betamatrix']
 list_of_samples = beta_matrix_pull()[1]
 #print("sample_names:")
@@ -63,24 +63,23 @@ beta_matrix.columns = list_of_samples
 print("The reference data - Beta matrix:")
 print(beta_matrix.shape)
 print(beta_matrix)
-
 # Function for calculating the mean of CpGs across all samples.
 def calculate_mean(beta_matrix):
     list_of_means = [row for row in range(0, len(beta_matrix.index))]
     for i in list_of_means:
-        list_of_means[i] = np.mean(beta_matrix.iloc[i])
+        list_of_means[i] = np.nanmean(beta_matrix.iloc[i])
     return list_of_means
 
 def calculate_variance(beta_matrix):
     list_of_vars = [row for row in range(0, len(beta_matrix.index))]
     for i in list_of_vars:
-        list_of_vars[i] = np.var(beta_matrix.iloc[i])
+        list_of_vars[i] = np.nanvar(beta_matrix.iloc[i])
     return list_of_vars
 
 def calculate_stds(beta_matrix):
     list_of_stds = [row for row in range(0, len(beta_matrix.index))]
     for i in list_of_stds:
-        list_of_stds[i] = np.std(beta_matrix.iloc[i])
+        list_of_stds[i] = np.nanstd(beta_matrix.iloc[i])
     return list_of_stds
 
 # Returns a matrix of ID's for CpGs and their associated mean values to generate desirable number of CpGs in the simulated data.
@@ -98,9 +97,9 @@ def induce_group_differnces(num_true_modified, vector_of_ref_means, effect_size)
         for r in truly_different_indices:
             f.write(str(r)+" ")
 
-    vector_of_affected_means = np.array(vector_of_ref_means, dtype='f') #Copy and replicate control and seperate from case
+    vector_of_affected_means = np.array(vector_of_ref_means, dtype='f') #Copy and replicate control and seperate for case
     vector_of_affected_means[truly_different_indices] = vector_of_ref_means[truly_different_indices] + float(effect_size) #Induce the difference
-    vector_of_affected_means = np.minimum(1, vector_of_affected_means)
+    #vector_of_affected_means = np.minimum(1, vector_of_affected_means)
     return vector_of_affected_means
 
 #get number of samples per group based on the control-case balance (healthy proportion)
@@ -120,18 +119,21 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
     #cpg_name = pd.DataFrame()
     means_vector_df = pd.DataFrame(means_vector)
     stds_vector_df = pd.DataFrame(stds_vector)
-
     for index in range(0, len(means_vector_df.index)):
         cpg_i = np.random.normal(loc=means_vector_df.iloc[index], scale=stds_vector_df.iloc[index], size=int(number_of_samples_in_group))
+        for i in range(0, len(cpg_i)):
+            if cpg_i[i] > 1.0:
+                cpg_i[i] = np.nanmax([i for i in beta_matrix.iloc[i] if not i < 0 or i != 0 or not i > 0 or i != 1])
+                if cpg_i[i] > 1:
+                    cpg_i[i] = 0.999999
+                    print("caught cpg > 1")
+            elif cpg_i[i] < 0.0:
+                cpg_i[i] = np.nanmin([i for i in beta_matrix.iloc[i] if not i < 0 or i != 0 or not i > 0 or i != 1])
+                if cpg_i[i] < 0:
+                    cpg_i[i] = 0.000001
+                    print("caught cpg < 0")
         all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i.tolist()).T)
         #cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
-    for index, row in all_cpgs.iterrows():
-        for j, value in all_cpgs.iloc[index].items():
-            if float(value) > float(1.0):
-                all_cpgs.iloc[index, j] = np.nanmax(beta_matrix.iloc[index])
-            elif float(value) < float(0):
-                all_cpgs.iloc[index, j] = np.nanmin(beta_matrix.iloc[index])
-    #all_cpgs.index = cpg_name.iloc[:,0].tolist()
     return all_cpgs
 
 #Simulate methylation data for every group based on the shape parameters specific to the group (different means and common standard deviation). The output is data frame with all samples and all CpGs.
@@ -156,8 +158,7 @@ def get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_p
         itertools.product(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified,
                           user_specified_n_CpGs))
 
-    param_columns = ['n_samples', 'effect_size', 'healthy_proportion', 'n_true_modified_CpGs',
-                     'n_CpGs']
+    param_columns = ['n_samples', 'effect_size', 'healthy_proportion', 'n_true_modified_CpGs','n_CpGs']
     all_combinations_df = pd.DataFrame(all_combinations, columns=param_columns)
     workflows = ["SimMethyl_run_" + str(workflow_num) for workflow_num in range(0, len(all_combinations_df))]
     all_combinations_df["workflow"] = workflows
@@ -178,7 +179,7 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
 
     means_stds_by_indicies_sample = shape_parameter_real_world.iloc[indices,:]
     vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
-    vector_stds = means_stds_by_indicies_sample.iloc[:, 1]
+    vector_of_ref_stds = means_stds_by_indicies_sample.iloc[:, 1]
 
     print("Inducing differences between groups...")
     vector_of_affected_means = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size)
@@ -186,19 +187,16 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
 
     print("Generating cpgs for groups...")
-    simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_stds, g1_number_of_samples, g2_number_of_samples)
+    simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_of_ref_stds, g1_number_of_samples, g2_number_of_samples)
 
     simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
     simulated_data.columns = simulated_data_columns
-    file_name_simulated_data = "Simulated_data.csv"
+    file_name_simulated_data = "Simulated_data.npy"
 
     print("The synthetic data - Beta matrix:")
     print(simulated_data)
-    simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep=',')
-    #with open(os.getcwd()+dirname+file_name_simulated_data, 'w') as f:
-    #    simulatedWrite = simulated_data.to_string(header=True, index=False)
-    #    print(simulatedWrite.to_string())
-    #    f.write(simulatedWrite)
+    #simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep='‚')
+    np.save(os.getcwd()+dirname+file_name_simulated_data, simulated_data.to_numpy(), allow_pickle=False)
 
     file_name_user_parameters = "User_Parameters.csv"
     file_name_truly_modified_indices = "truly_different_sites_indices.txt"
@@ -227,10 +225,10 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
 
 def simulator_pool(workflow):
     healthy_proportion = [0.5]
-    num_true_modified = [3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [350]#[3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.05]#[0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
+    effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,
                                           num_true_modified, user_specified_n_CpGs)
     print("Running environmental setup using parameters:")
@@ -241,9 +239,9 @@ def simulator_pool(workflow):
 
 if __name__ == '__main__':
     healthy_proportion = [0.5]
-    num_true_modified = [3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_true_modified = [350]#[3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]#[1000]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.05]#[0.01,0.02,0.03,0.05,0.07,0.09,0.11,0.13]
+    effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
     multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
     print("Time taken: ",time.time() - starttime)
