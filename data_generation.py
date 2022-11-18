@@ -19,7 +19,6 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.vectors import DataFrame, StrVector
 from rpy2.robjects.packages import importr
-user_specified_n_CpGs = [371377]
 
 pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -50,15 +49,8 @@ robjects.r('''
 
 beta_matrix_pull = robjects.r['get_betamatrix']
 list_of_samples = beta_matrix_pull()[1]
-#print("sample_names:")
-#print([beta_matrix_pull()[1]])
-#print("cpg_names:")
-#print([beta_matrix_pull()[2]])
-#list_of_cpgs = beta_matrix_pull()[2]
-
 beta_matrix = pd.DataFrame(beta_matrix_pull()[0]).transpose()
 beta_matrix.columns = list_of_samples
-#beta_matrix.index = list_of_cpgs
 
 print("The reference data - Beta matrix:")
 print(beta_matrix.shape)
@@ -85,22 +77,18 @@ def calculate_stds(beta_matrix):
 # Returns a matrix of ID's for CpGs and their associated mean values to generate desirable number of CpGs in the simulated data.
 def user_specified_num_elements(means, user_specified_n_CpGs):
     indicies_of_means = [num for num in range(0, len(means))]
-    sampling_indices = random.choices(indicies_of_means,k=user_specified_n_CpGs) #sampling with replacement
+    sampling_indices = random.choices(indicies_of_means,k=user_specified_n_CpGs)
     return(sampling_indices)
 
 # Induce differences (i.e., hypermetalytation) between groups by changing mean beta-values of selected CpGs. The modified CpGs are sampled from mean values of the reference group (control group). The output then recordes indices of the truly modified CpGs and vector of means with introduced corresponding differences.
 # This function operates based on indices between a control and case
-def induce_group_differnces(num_true_modified, vector_of_ref_means, effect_size):
+def induce_group_differnces(num_true_modified, vector_of_ref_means, effect_size, sim_iter):
     means_of_control_population = [num for num in range(0, len(vector_of_ref_means))]
     truly_different_indices = random.sample(means_of_control_population, k=num_true_modified) #indicies to change
-    with open(os.getcwd()+dirname+'truly_different_sites_indices.txt', 'w') as f:
-        for r in truly_different_indices:
-            f.write(str(r)+" ")
-
     vector_of_affected_means = np.array(vector_of_ref_means, dtype='f') #Copy and replicate control and seperate for case
     vector_of_affected_means[truly_different_indices] = vector_of_ref_means[truly_different_indices] + float(effect_size) #Induce the difference
-    #vector_of_affected_means = np.minimum(1, vector_of_affected_means)
-    return vector_of_affected_means
+    vector_of_affected_means = np.minimum(1, vector_of_affected_means)
+    return vector_of_affected_means, truly_different_indices
 
 #get number of samples per group based on the control-case balance (healthy proportion)
 def get_group_number(healthy_proportion, total_num_samples):
@@ -121,18 +109,8 @@ def sample_distribution(means_vector, stds_vector, number_of_samples_in_group):
     stds_vector_df = pd.DataFrame(stds_vector)
     for index in range(0, len(means_vector_df.index)):
         cpg_i = np.random.normal(loc=means_vector_df.iloc[index], scale=stds_vector_df.iloc[index], size=int(number_of_samples_in_group))
-        for i in range(0, len(cpg_i)):
-            if cpg_i[i] > 1.0:
-                cpg_i[i] = np.nanmax([i for i in beta_matrix.iloc[i] if not i < 0 or i != 0 or not i > 0 or i != 1])
-                if cpg_i[i] > 1:
-                    cpg_i[i] = 0.999999
-                    print("caught cpg > 1")
-            elif cpg_i[i] < 0.0:
-                cpg_i[i] = np.nanmin([i for i in beta_matrix.iloc[i] if not i < 0 or i != 0 or not i > 0 or i != 1])
-                if cpg_i[i] < 0:
-                    cpg_i[i] = 0.000001
-                    print("caught cpg < 0")
-        all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i.tolist()).T)
+        cpg_i_corrected = np.maximum(0, np.minimum(1, cpg_i)) # Remove < 0 and > 1
+        all_cpgs = all_cpgs.append(pd.DataFrame(cpg_i_corrected.tolist()).T)
         #cpg_name = cpg_name.append(pd.Series(str("cpg") + str(index)), ignore_index=True)
     return all_cpgs
 
@@ -154,6 +132,8 @@ def generate_col_names(g1_number_of_samples, g2_number_of_samples):
 
 #Create all combinations (cartisian product) of the input parameters (5 user-defined parameters)
 def get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
+    if os.path.isdir(os.getcwd() + dirname) == False:
+        os.mkdir(os.getcwd() + dirname)
     all_combinations = list(
         itertools.product(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified,
                           user_specified_n_CpGs))
@@ -162,52 +142,54 @@ def get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_p
     all_combinations_df = pd.DataFrame(all_combinations, columns=param_columns)
     workflows = ["SimMethyl_run_" + str(workflow_num) for workflow_num in range(0, len(all_combinations_df))]
     all_combinations_df["workflow"] = workflows
-
-    if os.path.isdir(os.getcwd() + dirname) == False:
-        os.mkdir(os.getcwd() + dirname)
-
     all_combinations_df.to_csv(os.getcwd()+dirname+'all_combinations.csv', header=True)
     return all_combinations_df
 
-def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modified, user_specified_n_CpGs, workflow_num):
+def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modified, user_specified_n_CpGs, workflow_num, num_simulations):
     print("Calculating shape parameters for simulation...")
+    list_of_simulated_data = []
+    list_of_truly_different_indices = []
+
     means_real_world = pd.DataFrame(calculate_mean(beta_matrix))
     stds_real_world = pd.DataFrame(calculate_stds(beta_matrix))
     shape_parameter_real_world = pd.concat([means_real_world, stds_real_world], axis=1)
 
-    indices = user_specified_num_elements(shape_parameter_real_world.iloc[:,0], user_specified_n_CpGs) #indices to sample mean/stds
+    for sim_iter in range(0, num_simulations):
+        indices = user_specified_num_elements(shape_parameter_real_world.iloc[:,0], user_specified_n_CpGs) #indices to sample mean/stds using sampling with replacement
+        means_stds_by_indicies_sample = shape_parameter_real_world.iloc[indices,:]
+        vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
+        vector_of_ref_stds = means_stds_by_indicies_sample.iloc[:, 1]
 
-    means_stds_by_indicies_sample = shape_parameter_real_world.iloc[indices,:]
-    vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
-    vector_of_ref_stds = means_stds_by_indicies_sample.iloc[:, 1]
+        print("Inducing differences between groups (workflow ", workflow_num, ", num_sim ",sim_iter,")")
+        vector_of_affected_means, truly_different_indices = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size, sim_iter)
+        g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
+        g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
 
-    print("Inducing differences between groups...")
-    vector_of_affected_means = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size)
-    g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
-    g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
+        print("Generating cpgs for groups (workflow ", workflow_num, ", num_sim ",sim_iter,")")
+        simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_of_ref_stds, g1_number_of_samples, g2_number_of_samples)
 
-    print("Generating cpgs for groups...")
-    simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_of_ref_stds, g1_number_of_samples, g2_number_of_samples)
-
-    simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
-    simulated_data.columns = simulated_data_columns
-    file_name_simulated_data = "Simulated_data.npy"
-
-    print("The synthetic data - Beta matrix:")
-    print(simulated_data)
-    #simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep='‚')
-    np.save(os.getcwd()+dirname+file_name_simulated_data, simulated_data.to_numpy(), allow_pickle=False)
-
+        simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
+        simulated_data.columns = simulated_data_columns
+        #simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep='‚')
+        #np.save(os.getcwd()+dirname+file_name_simulated_data, simulated_data.to_numpy(), allow_pickle=False)
+        list_of_truly_different_indices.append(truly_different_indices)
+        list_of_simulated_data.append(simulated_data.to_numpy(dtype='float32'))
     file_name_user_parameters = "User_Parameters.csv"
-    file_name_truly_modified_indices = "truly_different_sites_indices.txt"
-    params = [['Total number of samples', total_num_samples], ['User-spesified number of CpGs', user_specified_n_CpGs], ['Healthy proportion', healthy_proportion], ['Effect size', effect_size], ['Number of true modified CpG sites', num_true_modified]]
+    file_name_truly_modified = "truly_different_sites_indices.npz"
+    file_name_simulated_data = "Simulated_data.npz"
+
+    params = [['Total number of samples', total_num_samples], ['User-spesified number of CpGs', user_specified_n_CpGs],
+              ['Healthy proportion', healthy_proportion], ['Effect size', effect_size],
+              ['Number of true modified CpG sites', num_true_modified]]
     params_summary = pd.DataFrame(params, columns=['Parameter', 'Value'])
     params_summary.to_csv(os.getcwd()+dirname+file_name_user_parameters, header=True)
+    np.savez_compressed(os.getcwd()+dirname+file_name_truly_modified, list_of_truly_different_indices)
+    np.savez_compressed(os.getcwd()+dirname+file_name_simulated_data, list_of_simulated_data)
 
     with ZipFile(os.getcwd()+dirname+workflow_num+str('.zip'), 'w') as zipObj:
-        zipObj.write(os.getcwd()+dirname+file_name_simulated_data, file_name_simulated_data)
         zipObj.write(os.getcwd()+dirname+file_name_user_parameters, file_name_user_parameters)
-        zipObj.write(os.getcwd()+dirname+file_name_truly_modified_indices, file_name_truly_modified_indices)
+        zipObj.write(os.getcwd()+dirname+file_name_simulated_data, file_name_simulated_data)
+        zipObj.write(os.getcwd()+dirname+file_name_truly_modified, file_name_truly_modified)
 
 def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
@@ -215,33 +197,26 @@ def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_propor
     pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
-    # Serial Version
-    #for i in range(len(combination_df)):
-    #    print("Running environmental setup using parameters:")
-    #    print(combination_df.iloc[i])
-    #    simulator(combination_df.loc[i, 'n_samples'], combination_df.loc[i, 'effect_size'],
-    #              combination_df.loc[i, 'healthy_proportion'], combination_df.loc[i, 'n_true_modified_CpGs'],
-    #              combination_df.loc[i, 'n_CpGs'], combination_df.loc[i, 'workflow'])
 
 def simulator_pool(workflow):
     healthy_proportion = [0.5]
-    num_true_modified = [350]#[3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
+    num_simulations = 5
+    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
     user_specified_n_CpGs = [371377]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
-    combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,
-                                          num_true_modified, user_specified_n_CpGs)
-    print("Running environmental setup using parameters:")
-    print(workflow)
+    effect_size_vector = [0.01]#[0.01,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
+    combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified, user_specified_n_CpGs)
+    print("Running environmental setup using parameters: ", workflow)
     simulator(combination_df.loc[workflow, 'n_samples'], combination_df.loc[workflow, 'effect_size'],
               combination_df.loc[workflow, 'healthy_proportion'], combination_df.loc[workflow, 'n_true_modified_CpGs'],
-              combination_df.loc[workflow, 'n_CpGs'], combination_df.loc[workflow, 'workflow'])
+              combination_df.loc[workflow, 'n_CpGs'], combination_df.loc[workflow, 'workflow'], num_simulations)
 
 if __name__ == '__main__':
     healthy_proportion = [0.5]
-    num_true_modified = [350]#[3713, 7427, 11141, 14855, 18568, 22282, 25996, 29710]#50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
-    user_specified_n_CpGs = [371377]#[1000]
+    num_simulations = 5
+    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]#[5,10,15,20,35,50,95,125]
+    user_specified_n_CpGs = [371377]
     total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01,0.03,0.05,0.07,0.09,0.11,0.13,0.15]
+    effect_size_vector = [0.01]#[0.01,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
     multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
     print("Time taken: ",time.time() - starttime)
