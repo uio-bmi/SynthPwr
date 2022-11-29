@@ -24,7 +24,10 @@ pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 starttime = time.time()
-dirname = os.sep+"dgp_experiments"+os.sep
+dirname = os.sep+"power_experiments"+os.sep
+figuredirname = os.sep+"figures"+os.sep
+summarycalcdirname = os.sep+"summary_stats"+os.sep
+
 robjects.r('''
             chooseCRANmirror(ind = 1)
             if (!require("BiocManager", quietly = TRUE))
@@ -55,8 +58,12 @@ beta_matrix.columns = list_of_samples
 print("The reference data - Beta matrix:")
 print(beta_matrix.shape)
 print(beta_matrix)
-# Function for calculating the mean of CpGs across all samples.
 def calculate_mean(beta_matrix):
+    """
+    Returns an array of the length of CpGs containing mean estimates (non-NaN) for CpGs across samples.
+    :param beta_matrix: an n (sample) by n (CpG) matrix of 0-1 methylation intensities
+    :rtype list_of_means: shape mean parameters based on the beta_matrix
+    """
     list_of_means = [row for row in range(0, len(beta_matrix.index))]
     for i in list_of_means:
         list_of_means[i] = np.nanmean(beta_matrix.iloc[i])
@@ -132,17 +139,15 @@ def generate_col_names(g1_number_of_samples, g2_number_of_samples):
 
 #Create all combinations (cartisian product) of the input parameters (5 user-defined parameters)
 def get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
-    if os.path.isdir(os.getcwd() + dirname) == False:
-        os.mkdir(os.getcwd() + dirname)
     all_combinations = list(
         itertools.product(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified,
                           user_specified_n_CpGs))
 
     param_columns = ['n_samples', 'effect_size', 'healthy_proportion', 'n_true_modified_CpGs','n_CpGs']
     all_combinations_df = pd.DataFrame(all_combinations, columns=param_columns)
-    workflows = ["SimMethyl_run_" + str(workflow_num) for workflow_num in range(0, len(all_combinations_df))]
+    workflows = ["workflow_" + str(workflow_num) for workflow_num in range(0, len(all_combinations_df))]
     all_combinations_df["workflow"] = workflows
-    all_combinations_df.to_csv(os.getcwd()+dirname+'all_combinations.csv', header=True)
+    all_combinations_df.to_csv(os.getcwd()+summarycalcdirname+'all_combinations.csv', header=True)
     return all_combinations_df
 
 def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modified, user_specified_n_CpGs, workflow_num, num_simulations):
@@ -160,63 +165,71 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
         vector_of_ref_means = means_stds_by_indicies_sample.iloc[:, 0]
         vector_of_ref_stds = means_stds_by_indicies_sample.iloc[:, 1]
 
-        print("Inducing differences between groups (workflow ", workflow_num, ", num_sim ",sim_iter,")")
+        print("Inducing differences between groups...")
         vector_of_affected_means, truly_different_indices = induce_group_differnces(num_true_modified,np.array(vector_of_ref_means, dtype='f'), effect_size, sim_iter)
         g1_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 0]
         g2_number_of_samples = get_group_number(healthy_proportion, total_num_samples).iloc[0, 1]
 
-        print("Generating cpgs for groups (workflow ", workflow_num, ", num_sim ",sim_iter,")")
+        print("Generating cpgs for groups (", workflow_num, ", num_sim ",sim_iter,")")
         simulated_data = generate_cpgs_for_groups(vector_of_ref_means,vector_of_affected_means, vector_of_ref_stds, g1_number_of_samples, g2_number_of_samples)
 
         simulated_data_columns = generate_col_names(g1_number_of_samples, g2_number_of_samples).values.tolist()
         simulated_data.columns = simulated_data_columns
-        #simulated_data.to_csv(os.getcwd()+dirname+file_name_simulated_data,index=False,header=True, sep='‚')
-        #np.save(os.getcwd()+dirname+file_name_simulated_data, simulated_data.to_numpy(), allow_pickle=False)
         list_of_truly_different_indices.append(truly_different_indices)
-        list_of_simulated_data.append(simulated_data.to_numpy(dtype='float32'))
-    file_name_user_parameters = "User_Parameters.csv"
-    file_name_truly_modified = "truly_different_sites_indices.npz"
-    file_name_simulated_data = "Simulated_data.npz"
-
+        list_of_simulated_data.append(simulated_data.to_numpy())
+    file_name_user_parameters = "User_Parameters"+"_"+workflow_num+".csv"
+    file_name_truly_modified = "truly_different_sites_indices"+"_"+workflow_num+".npz"
+    file_name_simulated_data = "Simulated_data"+"_"+workflow_num+".npz"
     params = [['Total number of samples', total_num_samples], ['User-spesified number of CpGs', user_specified_n_CpGs],
               ['Healthy proportion', healthy_proportion], ['Effect size', effect_size],
               ['Number of true modified CpG sites', num_true_modified]]
     params_summary = pd.DataFrame(params, columns=['Parameter', 'Value'])
-    params_summary.to_csv(os.getcwd()+dirname+file_name_user_parameters, header=True)
-    np.savez_compressed(os.getcwd()+dirname+file_name_truly_modified, list_of_truly_different_indices)
-    np.savez_compressed(os.getcwd()+dirname+file_name_simulated_data, list_of_simulated_data)
 
-    with ZipFile(os.getcwd()+dirname+workflow_num+str('.zip'), 'w') as zipObj:
-        zipObj.write(os.getcwd()+dirname+file_name_user_parameters, file_name_user_parameters)
-        zipObj.write(os.getcwd()+dirname+file_name_simulated_data, file_name_simulated_data)
-        zipObj.write(os.getcwd()+dirname+file_name_truly_modified, file_name_truly_modified)
+    if os.path.isdir(os.getcwd()+dirname+workflow_num+os.sep) == False:
+        os.mkdir(os.getcwd()+dirname+workflow_num+os.sep)
+    params_summary.to_csv(os.getcwd()+dirname+workflow_num+os.sep+file_name_user_parameters, header=True)
+    np.savez_compressed(os.getcwd()+dirname+workflow_num+os.sep+file_name_truly_modified, list_of_truly_different_indices)
+    np.savez_compressed(os.getcwd()+dirname+workflow_num+os.sep+file_name_simulated_data, list_of_simulated_data)
 
-def multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs):
+def multi_simMethyl():
+    if os.path.isdir(os.getcwd() + dirname) == False:
+        os.mkdir(os.getcwd() + dirname)
+    if os.path.isdir(os.getcwd() + summarycalcdirname) == False:
+        os.mkdir(os.getcwd() + summarycalcdirname)
+    if os.path.isdir(os.getcwd() + figuredirname) == False:
+        os.mkdir(os.getcwd() + figuredirname)
+
+    total_num_samples_vector = [50,100,200,350,500,650]#,800,950]
+    effect_size_vector = [0.01]#,0.02,0.03,0.05,0.07,0.08,0.09,0.1]  # [0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
+    healthy_proportion = [0.5]
+    num_true_modified = [4,371,3713,18568,37137,148550]#,148550,315670]#[5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
+    user_specified_n_CpGs = [371377]
+    num_simulations = 5
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
     list_of_workflows = [num for num in range(0, len(combination_df.index))]
-    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
+    num_workflows = len(list_of_workflows)
+    variable_varied = "n_modified_CpGs"#"n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
+    config_params = [['num_simulations', num_simulations], ['num_workflows', num_workflows], ['variable_varied', variable_varied]]
+    config_params_summary = pd.DataFrame(config_params, columns=['Parameter', 'Value'])
+    config_params_summary.to_csv(os.getcwd()+summarycalcdirname+'env_inputparams.csv', header=True)
+    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
 
 def simulator_pool(workflow):
-    healthy_proportion = [0.5]
     num_simulations = 5
-    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]#[50,100,150,200,350,500,950,1250]#[5,10,15,20,35,50,95,125]
-    user_specified_n_CpGs = [371377]
-    total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01]#[0.01,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
+    healthy_proportion = [0.5]
+    num_true_modified = [4,371,3713,18568,37137,148550]#[5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
+    user_specified_n_CpGs = [371377]#[371377]
+    total_num_samples_vector = [50,100,200,350,500,650]#,800,950]
+    effect_size_vector = [0.01]#,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified, user_specified_n_CpGs)
-    print("Running environmental setup using parameters: ", workflow)
+
+    print("Running environmental setup for workflow: ", workflow)
     simulator(combination_df.loc[workflow, 'n_samples'], combination_df.loc[workflow, 'effect_size'],
               combination_df.loc[workflow, 'healthy_proportion'], combination_df.loc[workflow, 'n_true_modified_CpGs'],
               combination_df.loc[workflow, 'n_CpGs'], combination_df.loc[workflow, 'workflow'], num_simulations)
 
 if __name__ == '__main__':
-    healthy_proportion = [0.5]
-    num_simulations = 5
-    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]#[5,10,15,20,35,50,95,125]
-    user_specified_n_CpGs = [371377]
-    total_num_samples_vector = [50,100,200,350,500,650,800,950]
-    effect_size_vector = [0.01]#[0.01,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
-    multi_simMethyl(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified,user_specified_n_CpGs)
+    multi_simMethyl()
     print("Time taken: ",time.time() - starttime)
