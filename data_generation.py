@@ -20,7 +20,7 @@ from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.vectors import DataFrame, StrVector
 from rpy2.robjects.packages import importr
 
-pd.options.display.max_rows
+#pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 starttime = time.time()
@@ -50,6 +50,61 @@ robjects.r('''
             get_betamatrix()
             ''')
 
+#robjects.r('''
+#            chooseCRANmirror(ind = 1)
+#            if (!require("BiocManager", quietly = TRUE))
+#            install.packages("BiocManager", repos='https://cloud.r-project.org/')
+#            install.packages("GEOquery", repos='https://cloud.r-project.org/')
+#            install.packages("R.utils")
+#            library(BiocManager)
+#            library(GEOquery)
+#            library(Biobase)
+#            library(RnBeads)
+#            library(here)
+#            library(grid)
+#            parallel.setup(8)
+#            options(timeout = max(300, getOption("timeout")))
+#            options(download.file.method.GEOquery = "wget")
+#            options("fftempdir" = here::here("Temp"))
+#            data.dir = here::here("Data_DNAm")
+#            idat.dir = file.path(data.dir, "idats")
+#            print(idat.dir)
+#            pheno.file = file.path(data.dir, "sampleSheet_withBarcode.csv")
+#            analysis.dir = here::here("Output/RnBeads")
+#            report.dir = file.path(analysis.dir, "diffMeth_report")
+#            rnb.initialize.reports(report.dir)
+#            get_betamatrix <- function(r, verbose=FALSE) {
+#            rnb.options(identifiers.column = "barcode",
+#            import.idat.platform = "probes450",
+#            filtering.greedycut.pvalue.threshold = 0.05,
+#            filtering.sex.chromosomes.removal = TRUE,
+#            filtering.snp = "3",
+#            filtering.cross.reactive = TRUE,
+#            normalization.method = "bmiq",
+#            normalization.background.method = "enmix.oob",
+#            exploratory = FALSE,
+#            differential = FALSE
+#            )
+#            data.source = c(idat.dir, pheno.file)
+#            result = rnb.run.import(data.source = data.source, data.type = "infinium.idat.dir", dir.reports = report.dir)
+#            rnb.set = result$rnb.set
+#            unfiltered_rnb.set = rnb.set
+#            filtered_results = rnb.run.preprocessing(unfiltered_rnb.set, dir.reports = report.dir)
+#            filtered_rnb.set = filtered_results$rnb.set
+#            betas_RnBeads = as.matrix(as.data.frame(meth(filtered_rnb.set, row.names = TRUE)))
+#            print(betas_RnBeads)
+#            pheno_RnBeads = pheno(filtered_rnb.set)
+#            print(pheno_RnBeads)
+#            list_df <- list(betas_RnBeads)
+#            }
+#            get_betamatrix()
+#            ''')
+#GEO_real_world_data <- "GSE68777"
+#gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE)
+#idat_paths <- getGEOSuppFiles("GSE68777", filter_regex = "GSE68777_RAW.tar")
+#variables <- names(idat_paths)
+#
+
 beta_matrix_pull = robjects.r['get_betamatrix']
 list_of_samples = beta_matrix_pull()[1]
 beta_matrix = pd.DataFrame(beta_matrix_pull()[0]).transpose()
@@ -58,6 +113,7 @@ beta_matrix.columns = list_of_samples
 print("The reference data - Beta matrix:")
 print(beta_matrix.shape)
 print(beta_matrix)
+
 def calculate_mean(beta_matrix):
     """
     Returns an array of the length of CpGs containing mean estimates (non-NaN) for CpGs across samples.
@@ -180,7 +236,7 @@ def simulator(total_num_samples, effect_size, healthy_proportion, num_true_modif
     file_name_user_parameters = "User_Parameters"+"_"+workflow_num+".csv"
     file_name_truly_modified = "truly_different_sites_indices"+"_"+workflow_num+".npz"
     file_name_simulated_data = "Simulated_data"+"_"+workflow_num+".npz"
-    params = [['Total number of samples', total_num_samples], ['User-spesified number of CpGs', user_specified_n_CpGs],
+    params = [['Total number of samples', total_num_samples], ['User-specified number of CpGs', user_specified_n_CpGs],
               ['Healthy proportion', healthy_proportion], ['Effect size', effect_size],
               ['Number of true modified CpG sites', num_true_modified]]
     params_summary = pd.DataFrame(params, columns=['Parameter', 'Value'])
@@ -199,32 +255,34 @@ def multi_simMethyl():
     if os.path.isdir(os.getcwd() + figuredirname) == False:
         os.mkdir(os.getcwd() + figuredirname)
 
-    total_num_samples_vector = [50,100,200,350,500,650]#,800,950]
+    total_num_samples_vector = [50,100,200,350,500,650,800,950]
     effect_size_vector = [0.01]#,0.02,0.03,0.05,0.07,0.08,0.09,0.1]  # [0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
     healthy_proportion = [0.5]
-    num_true_modified = [4,371,3713,18568,37137,148550]#,148550,315670]#[5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
-    user_specified_n_CpGs = [371377]
+    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]#,148550,315670]#[5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
+    user_specified_n_CpGs = [371377] # [1000]
     num_simulations = 5
     combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion, num_true_modified, user_specified_n_CpGs)
     list_of_workflows = [num for num in range(0, len(combination_df.index))]
     num_workflows = len(list_of_workflows)
+
+    #Important to change this for select variable which is varied
     variable_varied = "n_modified_CpGs"#"n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     config_params = [['num_simulations', num_simulations], ['num_workflows', num_workflows], ['variable_varied', variable_varied]]
     config_params_summary = pd.DataFrame(config_params, columns=['Parameter', 'Value'])
     config_params_summary.to_csv(os.getcwd()+summarycalcdirname+'env_inputparams.csv', header=True)
-    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     result = pool.map(simulator_pool,list_of_workflows)
     pool.close()
 
 def simulator_pool(workflow):
-    num_simulations = 5
-    healthy_proportion = [0.5]
-    num_true_modified = [4,371,3713,18568,37137,148550]#[5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
-    user_specified_n_CpGs = [371377]#[371377]
-    total_num_samples_vector = [50,100,200,350,500,650]#,800,950]
+    total_num_samples_vector = [50,100,200,350,500,650,800,950]
     effect_size_vector = [0.01]#,0.02,0.03,0.05,0.07,0.08,0.09,0.1]#[0.01,0.04,0.07,0.1,0.13,0.16,0.19,0.22]
-    combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified, user_specified_n_CpGs)
+    healthy_proportion = [0.5]
+    num_true_modified = [4,37,371,3713,18568,37137,148550,315670]  # [5,10,15,20,35,50,95,125]#[4,37,371,3713,18568,37137,148550,315670]
+    user_specified_n_CpGs = [371377]  # [1000]
+    num_simulations = 5
 
+    combination_df = get_all_combinations(total_num_samples_vector, effect_size_vector, healthy_proportion,num_true_modified, user_specified_n_CpGs)
     print("Running environmental setup for workflow: ", workflow)
     simulator(combination_df.loc[workflow, 'n_samples'], combination_df.loc[workflow, 'effect_size'],
               combination_df.loc[workflow, 'healthy_proportion'], combination_df.loc[workflow, 'n_true_modified_CpGs'],

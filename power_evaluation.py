@@ -18,7 +18,6 @@ from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.vectors import DataFrame, StrVector
 from multiprocessing import Pool
 from scipy.stats import ttest_ind
-import fnmatch
 
 starttime = time.time()
 pandas2ri.activate()
@@ -183,7 +182,8 @@ def calc_empirical_marg_power(workflows_confusion_matrix):
 
 def power_calc_multiple_runs(workflow):
     print("Power Calculation for Workflow: ", workflow)
-    num_simulation = 5
+    env_params_df = pd.read_csv(os.getcwd() + summarycalcdirname + "env_inputparams.csv", index_col=0)
+    num_simulation = int(env_params_df.iloc[0, 1])
     p_cut = 0.05
     df_workflow_all_test_simiter_list = []
     workflow_files = unpack_workflow(workflow)
@@ -210,7 +210,7 @@ def power_calc_multiple_runs(workflow):
     return df_workflow_all_test_simiter_list
 
 def merge_data(num_workflows, num_simulations):
-    pool = Pool(processes=40) # user specified CPUs e.g., processes=8
+    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
     list_of_workflows = [num for num in range(num_workflows)]
     environmental_tests_df = pd.DataFrame(index=range(num_workflows), columns=range(6))
     environmental_tests_df.columns = ['n_samples', 'n_CpGs', 'healthy_proportion', 'effect_size', 'n_modified_CpGs','ID']
@@ -219,8 +219,7 @@ def merge_data(num_workflows, num_simulations):
     pool.close()
     output_of_map_list = list(range(num_simulations))
     for sim_run in range(0, num_simulations):
-        storing = pd.DataFrame()
-        output_of_map_list[sim_run] = storing
+        output_of_map_list[sim_run] = pd.DataFrame()
     for workflow_run in range(0, len(power_calc_result)):
         workflow = power_calc_result[workflow_run]
         for sim_run in range(0, len(workflow)):
@@ -231,8 +230,8 @@ def merge_data(num_workflows, num_simulations):
         environmental_tests_df.iloc[i] = param_combo.iloc[1].tolist() + [i]
         i += 1
     simiter_output = []
-    for sim_iter in output_of_map_list:
-        output_df = sim_iter.merge(environmental_tests_df, how='inner', on='ID')
+    for sim_run in range(0, num_simulations):
+        output_df = output_of_map_list[sim_run].merge(environmental_tests_df, how='inner', on='ID')
         simiter_output.append(output_df)
     print("The output for analysis: ")
     print(simiter_output)
