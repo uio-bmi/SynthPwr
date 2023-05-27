@@ -164,7 +164,6 @@ def create_confusion_matrix(all_test_df, group1_means_vector,group2_means_vector
         workflows_confusion_matrix.append(result)
     return workflows_confusion_matrix
 
-#Change to Cpg possibly
 def calc_empirical_marg_power(workflows_confusion_matrix):
     df_all_test = pd.DataFrame(index=range(3), columns=range(2))
     df_all_test.columns = ['Power', 'Test']
@@ -209,8 +208,8 @@ def power_calc_multiple_runs(workflow):
         df_workflow_all_test_simiter_list.append(calc_power_value_workflow)
     return df_workflow_all_test_simiter_list
 
-def merge_data(num_workflows, num_simulations):
-    pool = Pool(processes=64) # user specified CPUs e.g., processes=8
+def merge_data(num_workflows, num_simulations, num_processes):
+    pool = Pool(processes=num_processes)
     list_of_workflows = [num for num in range(num_workflows)]
     environmental_tests_df = pd.DataFrame(index=range(num_workflows), columns=range(6))
     environmental_tests_df.columns = ['n_samples', 'n_CpGs', 'healthy_proportion', 'effect_size', 'n_modified_CpGs','ID']
@@ -308,18 +307,20 @@ def heat_map(data_df, num_workflows, num_simulations, num_tests, x_parameter_str
     y_parameter = y_parameter_string
     x_parameter = x_parameter_string
     selected_parameters_df = selected_parameters_df.loc[selected_parameters_df['Test'] == test_string,:]
+    selected_parameters_df.to_csv(os.getcwd() + summarycalcdirname + "PowerCalc_avg_" + test_string + '.csv', sep=",", index='ID',header=True)
     df_m = selected_parameters_df.reset_index().pivot_table(index=y_parameter,columns=x_parameter, values='Power')
     fig, ax = plt.subplots(figsize=(10, 10))
     plt.title("HeatMap of "+y_parameter+ " and "+ x_parameter)
     plt.xlabel(x_parameter)
     plt.ylabel('Sample')
+
     ax = sns.heatmap(df_m, cmap='crest', annot=True)
     fig = ax.get_figure()
     fig.savefig(os.getcwd()+figuredirname+"HeatMap_" + y_parameter + "_vs_" +x_parameter +"_fill_Power_"+"test_"+test_string+"_padjust_"+p_adjust_method_string+".png", dpi=100)
 
 #Aggregate function that calculates marginal power for all the tests across samples based on user-defined inputs. As an output it generates line plots and heat maps that shows the relationship between power and two varying parameters and three constant parameters
-def PowerCalc(num_workflows, num_simulations,p_adjust_method_string, y_parameter_string, x_parameter_string, test_vector_string):
-    all_test_all_zips = merge_data(num_workflows, num_simulations)
+def PowerCalc(num_workflows, num_simulations,num_processes,p_adjust_method_string, y_parameter_string, x_parameter_string, test_vector_string):
+    all_test_all_zips = merge_data(num_workflows, num_simulations,num_processes)
     for sim_iter in range(0, num_simulations):
         all_test_all_zips[sim_iter].to_csv(os.getcwd()+summarycalcdirname+"PowerCalc_iter"+str(sim_iter)+'.csv', sep=",", index='ID',header=True)
 
@@ -332,12 +333,14 @@ if __name__ == '__main__':
     env_params_df = pd.read_csv(os.getcwd()+summarycalcdirname+"env_inputparams.csv", index_col=0)
     num_simulations = int(env_params_df.iloc[0, 1])
     num_workflows = int(env_params_df.iloc[1, 1])
+    num_processes = int(env_params_df.iloc[2, 1])
     p_adjust_method_string = "fdr" #"none"/"BH"/"bonferroni"/"fdr"
     y_parameter_string = "n_samples" # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
-    x_parameter_string = env_params_df.iloc[2, 1] # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
+    x_parameter_string = env_params_df.iloc[3, 1] # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     test_vector_string = ["T_test","Limma_test","W_test"]
     p_cut = 0.05 #0.01, 0.1, 0.05
+    #age_group = env_params_df.iloc[3, 1]
 
-    PowerCalc(num_workflows,num_simulations,p_adjust_method_string,y_parameter_string,x_parameter_string,test_vector_string)
+    PowerCalc(num_workflows,num_simulations,num_processes,p_adjust_method_string,y_parameter_string,x_parameter_string,test_vector_string)
     endtime = time.time()
     print("Time taken: ", endtime - starttime)
