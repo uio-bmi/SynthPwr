@@ -1,4 +1,6 @@
 import os
+import random
+
 import scipy
 from scipy import stats, optimize, interpolate
 import pandas as pd
@@ -17,7 +19,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.vectors import DataFrame, StrVector
 from multiprocessing import Pool
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, gaussian_kde
 
 starttime = time.time()
 pandas2ri.activate()
@@ -38,6 +40,12 @@ caret = importr('caret')
 ENmix = importr('ENmix')
 
 def calculate_delta_beta(group1_means_vector,group2_means_vector):
+    """
+    Measure the comparative difference between the mean methylation signatures of two groups
+    :param group1_means_vector: the methylation values of group1
+    :param group1_means_vector: the methylation values of group2
+    :rtype list_of_delta: the delta_beta for all CpGs
+    """
     list_of_delta = [row for row in range(0, len(group1_means_vector.index))]
     list_of_delta_scores = []
     for i in list_of_delta:
@@ -45,6 +53,11 @@ def calculate_delta_beta(group1_means_vector,group2_means_vector):
     return list_of_delta
 
 def unpack_workflow(workflow_num):
+    """
+    Unpack the resources pertaining to a single environmental setup (i.e., workflow)
+    :param workflow_num: the environmental identifier amongst all combinatorial environmental setups
+    :rtype result: the simulated_data, ground truth CpG locations modified and environmental parameters for a workflow as a list
+    """
     list_of_simulated_data_df = np.load(os.getcwd()+dirname+"workflow_"+str(workflow_num)+os.sep+"Simulated_data"+"_workflow_"+str(workflow_num)+".npz")
     list_of_true_CpG_locations = np.load(os.getcwd()+dirname+"workflow_"+str(workflow_num)+os.sep+"truly_different_sites_indices"+"_workflow_"+str(workflow_num)+".npz")
     user_params_df = pd.read_csv(os.getcwd()+dirname+"workflow_"+str(workflow_num)+os.sep+"User_Parameters"+"_workflow_"+str(workflow_num)+".csv", index_col=0)
@@ -52,11 +65,22 @@ def unpack_workflow(workflow_num):
     return result
 
 def unpack_workflow_params_only(workflow_num):
+    """
+    Unpack only the environmental parameters for a single environmental setup (i.e., workflow)
+    :param workflow_num: the environmental identifier amongst all combinatorial environmental setups
+    :rtype result: the environmental parameters for a workflow
+    """
     user_params_df = pd.read_csv(os.getcwd()+dirname+"workflow_"+str(workflow_num)+os.sep+"User_Parameters"+"_workflow_"+str(workflow_num)+".csv", index_col=0)
     return user_params_df
 
 #targets simulated data characteristics to determine num samples
 def get_num_sample_per_group(user_params, simulated_df):
+    """
+    Retreive the split in sample groups based on simulated data and environmental parameters
+    :param user_params: user-specified environmental parameters
+    :param simulated_df: synthetic dataset of Sample by CpG methylation values
+    :rtype result: the number representing how many samples within each group
+    """
     healthy_proportion = user_params.iloc[2,1]
     n_Group1 = len(simulated_df.columns)*healthy_proportion
     n_Group2 = len(simulated_df.columns)*(1-healthy_proportion)
@@ -64,9 +88,16 @@ def get_num_sample_per_group(user_params, simulated_df):
     return result
 
 def tradtional_t_test(simulated_df, n_group1):
+    """
+    Perform a student's t-test on a simulated dataset
+    :param simulated_df: synthetic dataset of Sample by CpG methylation values
+    :param n_group1: number of samples in group1
+    :rtype result: a p-value for every CpG in the simulated_data
+    """
     simulated_df = pd.DataFrame(logit_transformation(simulated_df))
     n_group1 = int(n_group1)
     all_p_val = [num for num in range(0, len(simulated_df.index))]
+
     for i in range(0, len(simulated_df.index)):
         gr1 = simulated_df.iloc[i, 0:n_group1]
         gr2 = simulated_df.iloc[i, n_group1:]
@@ -75,6 +106,12 @@ def tradtional_t_test(simulated_df, n_group1):
     return all_p_val
 
 def w_test(simulated_df, n_group1):
+    """
+    Perform a non-parametric Wilcox rank sum test on a simulated dataset
+    :param simulated_df: synthetic dataset of Sample by CpG methylation values
+    :param n_group1: number of samples in group1
+    :rtype result: a p-value for every CpG in the simulated_data
+    """
     n_group1 = int(n_group1)
     all_p_val = [num for num in range(0, len(simulated_df.index))]
     for i in range(0, len(simulated_df.index)):
@@ -85,6 +122,13 @@ def w_test(simulated_df, n_group1):
     return all_p_val
 
 def limma_test(simulated_df, n_group1, n_group2):
+    """
+    Fit a linear model using R's limma package on a simulated dataset
+    :param simulated_df: synthetic dataset of Sample by CpG length methylation values
+    :param n_group1: number of samples in group1
+    :param n_group2: number of samples in group2
+    :rtype result: a p-value for every CpG in the simulated_data
+    """
     simulated_df = pd.DataFrame(logit_transformation(simulated_df))
     n_group1 = int(n_group1)
     n_group2 = int(n_group2)
@@ -110,11 +154,23 @@ def limma_test(simulated_df, n_group1, n_group2):
     return pd_from_r_df.iloc[:,0].tolist()
 
 def logit_transformation(beta_matrix):
+    """
+    Perform a logit transformation using R's ENmix package to normalise beta-methylation values into M-methylation values to satisfy statistical assumptions
+    :param beta_matrix: a 2D matrix of decimal values between 0 and 1
+    :rtype logit_result: the converted matrix as M-methylation values
+    """
     logit_result = ENmix.B2M(beta_matrix)
     return logit_result
 
 #Running all the tests to compare the two groups for every CpG site based on either transformed or original values. The output is p-values for every CpG site and for every test
 def run_all_test(n_group1, n_group2, sim_data):
+    """
+    Perform all hypothesis testing on the simulated_data
+    :param n_group1: number of samples in group1
+    :param n_group2: number of samples in group2
+    :param sim_data: synthetic dataset of Sample by CpG length methylation values
+    :rtype logit_result: a dict containing the results of all statistical testing
+    """
     t_test_output = tradtional_t_test(sim_data, n_group1)
     limma_test_output = limma_test(sim_data, n_group1, n_group2)
     w_test_output = w_test(sim_data, n_group1)
@@ -124,11 +180,21 @@ def run_all_test(n_group1, n_group2, sim_data):
     return all_test_output
 
 def getadjustPval(p_val_vector):
+    """
+    Perform a single p-value test adjustment
+    :param p_val_vector: p-values to be adjusted
+    :rtype p_val_vector: p-values that have been corrected
+    """
     method = "fdr"
     p_val_vector = stats.p_adjust(p_val_vector, method=method)
     return p_val_vector
 
 def multitest_p_adjust(all_test_df):
+    """
+    Perform multiple testing correction (i.e., adjust p-values) that were derived from multiple statistical tests to control for increases in false positives
+    :param all_test_df: a dataframe containing p-values which is of the shape of tests being done and by CpG length
+    :rtype store_p_adjust: adjusted p-values corrected for each test
+    """
     store_p_adjust = pd.DataFrame(index=all_test_df.index, columns=all_test_df.columns)
     for cpg in range(0, len(all_test_df.index)):
         for p_val_test in range(0, len(all_test_df.columns)):
@@ -198,7 +264,6 @@ def power_calc_multiple_runs(workflow):
         n_samples_per_gr = get_num_sample_per_group(user_params, simulated_data)
         n_group1 = n_samples_per_gr[0]
         n_group2 = n_samples_per_gr[1]
-
         all_test = run_all_test(n_group1, n_group2, simulated_data)
         p_adjust_all_test = multitest_p_adjust(all_test)
         confusion_matrix = create_confusion_matrix(p_adjust_all_test,simulated_data.iloc[:,0:int(n_group1)],simulated_data.iloc[:,int(n_group1):], truly_different, p_cut)
@@ -318,6 +383,97 @@ def heat_map(data_df, num_workflows, num_simulations, num_tests, x_parameter_str
     fig = ax.get_figure()
     fig.savefig(os.getcwd()+figuredirname+"HeatMap_" + y_parameter + "_vs_" +x_parameter +"_fill_Power_"+"test_"+test_string+"_padjust_"+p_adjust_method_string+".png", dpi=100)
 
+def pwrEWAS_deltaDensity(data, detectionLimit=0.01, sd=False):
+    maxDensY = 0
+    maxDensX = 0
+    for d in range(len(data)):
+        filtered_data = data[d][np.abs(data[d]) > detectionLimit]
+        dens = gaussian_kde(filtered_data)
+        dens_y = dens(np.linspace(min(filtered_data), max(filtered_data), num=1000))
+        maxDensY = max(maxDensY, np.max(dens_y))
+        maxDensX = max(maxDensX, np.max(np.abs(filtered_data)))
+
+    plt.figure()
+    plt.plot(*gaussian_kde(data[0])(np.linspace(min(data[0]), max(data[0]), num=1000)), color="white")
+    plt.ylim([0, maxDensY])
+    plt.xlim([max(-1, -1.1 * maxDensX), min(1, 1.1 * maxDensX)])
+    plt.xlabel(r"$\Delta\beta$", fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    myLineWd = 2.5
+    for d in range(len(data)):
+        filtered_data = data[d][np.abs(data[d]) > detectionLimit]
+        dens_from = gaussian_kde(filtered_data)
+        dens_to = gaussian_kde(-filtered_data)
+        x_vals = np.linspace(detectionLimit, max(filtered_data), num=1000)
+        plt.plot(x_vals, dens_from(x_vals), color='C' + str(d), linewidth=myLineWd)
+        x_vals = np.linspace(-max(filtered_data), -detectionLimit, num=1000)
+        plt.plot(x_vals, dens_to(x_vals), color='C' + str(d), linewidth=myLineWd)
+    plt.axvline(x=-detectionLimit, linestyle='dashed', color='black')
+    plt.axvline(x=detectionLimit, linestyle='dashed', color='black')
+    if sd:
+        plt.legend(data.columns.values.tolist(), loc="upper right",
+                       facecolor='white', framealpha=1, edgecolor='black',
+                       title=r"$sd(\Delta\beta)$", fontsize=15)
+    else:
+        plt.legend(data.columns.values.tolist(), loc="upper right",
+                       facecolor='white', framealpha=1, edgecolor='black',
+                       title=r"$\Delta\beta$", fontsize=15)
+    plt.show()
+    plt.savefig(os.getcwd()+figuredirname+"DensityPlot_" +".png", dpi=100)
+
+def plot_power_by_sample(data_df, targetDelta):
+    plt.figure()
+    plt.title("Sample Vs Power (all effect sizes)")
+    plt.xlabel('Sample')
+    plt.ylabel('Power')
+    plt.axhline(0.8, linestyle="--", c="black", alpha=.75)
+    for effect_size in targetDelta:
+        plt.plot(data_df['Sample_Size'], data_df[effect_size], label = str(effect_size))
+    #plt.errorbar(x=selected_parameters['n_samples'], y=selected_parameters['Power'],yerr=selected_parameters['Power_se'], fmt='none', c='black', capsize=2)
+    plt.legend()
+    plt.show()
+    plt.savefig(os.getcwd()+figuredirname+"LinePlot_" + "Sample_vs_Power_" + "alleffectsizes.png", dpi=100)
+
+def plot_power_simulations_by_sample(list_of_data_df, targetDeltas, sample_steps, classicalPower):
+    average_df = pd.DataFrame(columns=targetDeltas)
+    errors_df = pd.DataFrame(columns=targetDeltas)
+    zscore_df = pd.DataFrame(columns=targetDeltas)
+    for delta_row in range(0, len(list_of_data_df[0].index)): # for every deltaBeta
+        first = []
+        second = []
+        third = []
+        for sim_iter in range(0, len(list_of_data_df)):  # for every sim
+            first.append(list_of_data_df[sim_iter].iloc[delta_row, 0])
+            second.append(list_of_data_df[sim_iter].iloc[delta_row, 1])
+            third.append(list_of_data_df[sim_iter].iloc[delta_row, 2])
+        avg_scores = [np.mean(first), np.mean(second), np.mean(third)]
+        error_scores = [scipy.stats.sem(first), scipy.stats.sem(second), scipy.stats.sem(third)]
+        average_df.loc[len(average_df)] = avg_scores
+        errors_df.loc[len(errors_df)] = error_scores
+    average_df.insert(len(average_df.columns), column="Sample_Size", value=sample_steps)
+    errors_df.insert(len(errors_df.columns), column="Sample_Size", value=sample_steps)
+    zscore_df.insert(len(zscore_df.columns), column="Sample_Size", value=sample_steps)
+    plt.figure()
+    plt.title("Sample Vs Power (all effect sizes) with errorbars")
+    plt.xlabel('Sample')
+    plt.ylabel('Power')
+    plt.axhline(0.8, linestyle="--", c="black", alpha=.75)
+    for effect_size in targetDeltas:
+        plt.plot(average_df['Sample_Size'], average_df[effect_size], linewidth=2.0,label=str(effect_size)+" Empirical")
+        plt.errorbar(x=average_df['Sample_Size'], y=average_df[effect_size],yerr=errors_df[effect_size], fmt='none', c='black', capsize=2)
+        plt.plot(classicalPower['Sample_Size'], classicalPower[effect_size], linewidth=1.0, linestyle='dashed', label=str(effect_size)+" Classic")
+        zscore_df[effect_size] = scipy.stats.zscore(average_df[effect_size], axis=0, ddof=0, nan_policy='omit')
+    plt.legend()
+    plt.savefig(os.getcwd() + figuredirname + "LinePlot_" + "Sample_vs_Power_" + "alleffectsizes" + "_errorbars.png",dpi=100)
+    plt.show()
+    average_df.to_csv(os.getcwd() + figuredirname + 'meanPower.csv')
+    errors_df.to_csv(os.getcwd() + figuredirname + 'semError.csv')
+    sns.displot(zscore_df)
+
+
+
+
 #Aggregate function that calculates marginal power for all the tests across samples based on user-defined inputs. As an output it generates line plots and heat maps that shows the relationship between power and two varying parameters and three constant parameters
 def PowerCalc(num_workflows, num_simulations,num_processes,p_adjust_method_string, y_parameter_string, x_parameter_string, test_vector_string):
     all_test_all_zips = merge_data(num_workflows, num_simulations,num_processes)
@@ -339,8 +495,7 @@ if __name__ == '__main__':
     x_parameter_string = env_params_df.iloc[3, 1] # "n_samples"/"n_CpGs"/"healthy_proportion"/"effect_size"/"n_modified_CpGs"
     test_vector_string = ["T_test","Limma_test","W_test"]
     p_cut = 0.05 #0.01, 0.1, 0.05
-    #age_group = env_params_df.iloc[3, 1]
-
+    age_group = env_params_df.iloc[3, 1]
     PowerCalc(num_workflows,num_simulations,num_processes,p_adjust_method_string,y_parameter_string,x_parameter_string,test_vector_string)
     endtime = time.time()
     print("Time taken: ", endtime - starttime)
