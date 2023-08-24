@@ -49,6 +49,9 @@ summarycalcdirname = os.sep+"summary_stats"+os.sep
 # Scenario 2 - GSE30870 Nonagenarians and newborns
 # control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
 # control_samples <- c('GSM765861', 'GSM765881', 'GSM765882', 'GSM765883', 'GSM765884', 'GSM765885', 'GSM765886', 'GSM765887', 'GSM765888', 'GSM765889', 'GSM765890', 'GSM765891', 'GSM765892', 'GSM765893', 'GSM765894', 'GSM765895', 'GSM765896', 'GSM765897', 'GSM765898', 'GSM765899')
+
+#control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
+# beta_matrix <- beta_matrix[,control_samples]
 robjects.r('''
             chooseCRANmirror(ind = 1)
             if (!require("BiocManager", quietly = TRUE))
@@ -60,9 +63,9 @@ robjects.r('''
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
             GEO_real_world_data <- "GSE30870"
-            gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE, GSElimits = c(1, 25))
+            gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE)
             beta_matrix <- as.data.frame(exprs(gset[[1]]))
-            control_samples <- c('GSM765861', 'GSM765881', 'GSM765882', 'GSM765883', 'GSM765884', 'GSM765885', 'GSM765886', 'GSM765887', 'GSM765888', 'GSM765889', 'GSM765890', 'GSM765891', 'GSM765892', 'GSM765893', 'GSM765894', 'GSM765895', 'GSM765896', 'GSM765897', 'GSM765898', 'GSM765899')
+            control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
             beta_matrix <- beta_matrix[,control_samples]
             sample_names <- colnames(beta_matrix)
             print(sample_names)
@@ -311,6 +314,7 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 }
                 print("the following Taus were chosen:")
                 print(tau)
+                write.table(as.data.frame(tau),file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/summary_stats/taus.csv'),sep=",",row.names=F)
                 } else {
                 tau <- deltaSD 
                 K <- NULL
@@ -318,13 +322,14 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 K[d] <- getK(targetDmCpGs, methPara, detectionLimit, J, CpGonArray, tau)
                 }
                 }
-                
-                cl <- parallel::makeCluster(core)
+                cl <- parallel::makeCluster(core, outfile="")
                 doSNOW::registerDoSNOW(cl)
                 Ntot <- NULL
+                direction_of_methylation_error <- c("hypermethylation", "hypomethylation")
+                chosen_direction <- "hypomethylation"
+                
                 multiThreadOut <- foreach(d = seq_along(tau), .combine = combine_tau, .packages = c("truncnorm", "limma", "CpGassoc", "genefilter"), .export = c("getAlphBet", "getMeanVar", "beta2Mvalue", "limma", "ttestSlow", "ttestFast", "Wilcox", "CPGassoc")) %:%
                 foreach(Ntot = totSampleSizes, .combine = combine_totSampleSizes) %dopar% { 
-                
                 Ncnt <- round(Ntot * NcntPer)
                 Ntx <- Ntot - Ncnt
                 marPower <- NULL
@@ -363,6 +368,28 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 g2Beta <- NULL
                 g1Beta <- matrix(stats::rbeta(J*Ncnt, rep(alpha_unchanged, each = Ncnt), rep(beta_unchanged, each = Ncnt)), ncol = Ncnt, byrow = TRUE) 
                 g2Beta <- matrix(stats::rbeta(J*Ntx, rep(alpha_changed, each = Ntx), rep(beta_changed, each = Ntx)), ncol = Ntx, byrow = TRUE) 
+                
+                # Perform Epigenetic drift using an assigned sample_age
+                ages <- round(rnorm(ncol(g1Beta), mean = 15, sd = 5))
+                
+                min_max_normalized <- (ages - min(ages)) / (max(ages) - min(ages))
+                sigmoid_normalized <- 1 / (1 + exp(-ages))
+                arctangent_normalized <- (atan(ages) + (pi / 2)) / pi
+                rank_normalized <- rank(ages) / (length(ages) + 1)
+                inverse_normalized <- 1 / (ages - min(ages) + 1)
+                
+                if (chosen_direction == "hypermethylation") {
+                for (col in 1:ncol(g1Beta)) {
+                g1Beta[, col] <- g1Beta[, col] + rank_normalized
+                g2Beta[, col] <- g2Beta[, col] + rank_normalized
+                }
+                } else {
+                for (col in 1:ncol(g1Beta)) {
+                g1Beta[, col] <- g1Beta[, col] - rank_normalized
+                g2Beta[, col] <- g2Beta[, col] - rank_normalized
+                }
+                }
+                
                 g1Beta[g1Beta == 1] <- max(g1Beta[g1Beta != 1])
                 g2Beta[g2Beta == 1] <- max(g2Beta[g2Beta != 1])
                 g1Beta[g1Beta == 0] <- min(g1Beta[g1Beta != 0])
@@ -395,18 +422,21 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 FDC[sim] <- ifelse(length(TP) > 0, (length(FP))/length(TP), NA)
                 classicalPower[sim] <- (length(NP)+length(TP))/(length(DM_negligible)+length(DM_meaningful))
                 probTP[sim] <- ifelse(length(TP)>0, 1, 0)
+                
+                variance_g1Beta_column <- apply(g1Beta, 2, var)
+                variance_g2Beta_column <- apply(g2Beta, 2, var)
+                write.table(variance_g1Beta_column,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg1col','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
+                write.table(variance_g2Beta_column,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg2col','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
                 }
-            
+
                 outSim <- list() 
                 outSim[["power"]] <- marPower 
-                outSim[["delta"]] <- deltaSim 
+                outSim[["delta"]] <- deltaSim
                 outSim[["metric"]]$marTypeI <- marTypeI
                 outSim[["metric"]]$FDR <- FDR
                 outSim[["metric"]]$classicalPower <- classicalPower
                 outSim[["metric"]]$FDC <- FDC
                 outSim[["metric"]]$probTP <- probTP
-                outSim[["metric"]]$g1Beta <- g1Beta
-                outSim[["metric"]]$g2Beta <- g2Beta
                 outSim
                 } 
                 parallel::stopCluster(cl)
@@ -422,7 +452,7 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 if(length(targetDelta) > 1 & length(totSampleSizes) == 1) output$powerArray <- multiThreadOut[["power"]]
                 if(length(targetDelta) > 1) output$powerArray <- multiThreadOut[["power"]]
                 dimnames(output$powerArray) <- list(seq_len(sims), totSampleSizes, targetDelta)  
-    
+                
                 if(length(targetDelta) == 1 & length(totSampleSizes) == 1)  output$deltaArray <- list(matrix(multiThreadOut[["delta"]]))
                 if(length(targetDelta) == 1 & length(totSampleSizes) > 1)   output$deltaArray <- list(multiThreadOut[["delta"]])
                 if(length(targetDelta) > 1 & length(totSampleSizes) == 1)   output$deltaArray <- lapply(multiThreadOut[["delta"]],as.matrix)
@@ -465,24 +495,21 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 }
                 ''')
     power_result = robjects.r['power_calc']
-    sample_steps = np.arange(minTotSampleSize, maxTotSampleSize + SampleSizeSteps, SampleSizeSteps)
     output_powerarray, output_metrics, output_fdr = power_result(targetDmCpGs, methPara, detectionLimit, J, CpGonArray, targetDelta, DMmethod, minTotSampleSize, maxTotSampleSize, SampleSizeSteps, FDRcritVal, NcntPer, core, sims)
+    sample_steps = np.arange(minTotSampleSize, maxTotSampleSize + SampleSizeSteps, SampleSizeSteps)
 
-    #fdr_df = pd.DataFrame(index=range(0,7),columns=targetDelta)
-    #print(output_g1var)
-    #print(pd.DataFrame(output_g1var))
-    #print(output_g2var)
-    #print(pd.DataFrame(output_g2var))
-    fdr_effectsizes = {item: [] for item in targetDelta}
-    for delta_row in range(0, len(sample_steps)):
-        for sim in output_fdr:
-            for idx, effectsize in enumerate(fdr_effectsizes):
-                fdr_effectsizes[effectsize].append(sim[delta_row, idx])
-    for effectsize in fdr_effectsizes:
-        fdr_effectsizes[effectsize].sort(reverse=True)
-        sns.kdeplot(fdr_effectsizes[effectsize]).set(title='Frequency Distribution of adjusted p-values')
-    plt.xlabel("FDR (q-value)")
+    # Visualise distribution of FDRs
+    #fdr_effectsizes = {item: [] for item in targetDelta}
+    #for delta_row in range(0, len(sample_steps)):
+    #    for sim in output_fdr:
+    #        for idx, effectsize in enumerate(fdr_effectsizes):
+    #            fdr_effectsizes[effectsize].append(sim[delta_row, idx])
+    #for effectsize in fdr_effectsizes:
+    #    fdr_effectsizes[effectsize].sort(reverse=True)
+    #    sns.kdeplot(fdr_effectsizes[effectsize]).set(title='Frequency Distribution of adjusted p-values')
+    #plt.xlabel("FDR (q-value)")
 
+    # Save all metrics to csvs
     for idx, metric in enumerate(output_metrics):
         if idx == 0:
             marTypeI = pd.DataFrame(metric, columns=targetDelta)
@@ -513,6 +540,31 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
         sim_run.insert(len(sim_run.columns), column="Sample_Size", value=sample_steps)
         list_of_sim_results.append(sim_run)
     plot_power_simulations_by_sample(list_of_sim_results, targetDelta, sample_steps, classicalPower)
+
+    taus = pd.read_csv('/Users/malwash/PycharmProjects/Synthetic_Power/summary_stats/taus.csv', header=0)
+    g1col = {row['tau']: [] for index, row in taus.iterrows()}
+    g2col = {row['tau']: [] for index, row in taus.iterrows()}
+
+    for sim_iter in range(1,sims+1):
+        for step in sample_steps:
+            for index, row in taus.iterrows():
+                g1colpd = pd.read_csv('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg1col' + ' _tau ' + str(row['tau']) + ' _sim ' + str(sim_iter) + ' _samplesize ' + str(int(step / 2)) + ' .csv',index_col=0, header=None)
+                g2colpd = pd.read_csv('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg2col' + ' _tau ' + str(row['tau']) + ' _sim ' + str(sim_iter) + ' _samplesize ' + str(int(step / 2)) + ' .csv',index_col=0, header=None)
+                g1col[row['tau']].extend(g1colpd.iloc[:,0].values.tolist())
+                g2col[row['tau']].extend(g2colpd.iloc[:,0].values.tolist())
+
+    plt.clf()
+    plt.figure(figsize=(10, 10))
+    plt.title("Distribution of variance across sample columns")
+    plt.xlabel('Variance (σ2)')
+    plt.ylabel('Frequency')
+
+    for index, row in taus.iterrows():
+        sns.kdeplot(g1col[row['tau']], label='Case - τ:'+str(row['tau']))
+        sns.kdeplot(g2col[row['tau']], label='Control - τ:'+str(row['tau']))
+    plt.legend()
+    plt.savefig(os.getcwd() + figuredirname + "dist_samples.png",dpi=300)
+    plt.show()
 
 def synthPwr(minTotSampleSize,maxTotSampleSize,SampleSizeSteps,NcntPer,targetDelta,deltaSD=None,J=100000,targetDmCpGs=100,tissueType="GSE67170",detectionLimit=0.01,DMmethod=["limma", "t-test (unequal var)", "t-test (equal var)", "Wilcox rank sum", "CPGassoc"],FDRcritVal=0.05,core=4,sims=50):
     beta_matrix_pull = robjects.r['get_betamatrix']
