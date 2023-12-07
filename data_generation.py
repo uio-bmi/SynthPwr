@@ -10,48 +10,18 @@ from rpy2.robjects import pandas2ri
 import seaborn as sns
 from power_evaluation import plot_power_by_sample, plot_power_simulations_by_sample
 
+# Define static directory names
 pandas2ri.activate()
-#pd.options.display.max_rows
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
 starttime = time.time()
 dirname = os.sep+"power_experiments"+os.sep
 figuredirname = os.sep+"figures"+os.sep
 summarycalcdirname = os.sep+"summary_stats"+os.sep
 
-#GSE67170 controls
-#control_samples <- c('GSM1641098', 'GSM1641099', 'GSM1641100', 'GSM1641101', 'GSM1641102', 'GSM1641103', 'GSM1641104', 'GSM1641105', 'GSM1641106', 'GSM1641107', 'GSM1641108', 'GSM1641109', 'GSM1641110', 'GSM1641111', 'GSM1641112', 'GSM1641113', 'GSM1641114', 'GSM1641115','GSM1641116', 'GSM1641117')
-#control_samples < - c('GSM1641098_9283265129_R01C01', 'GSM1641099_9283265129_R01C02', 'GSM1641100_9283265129_R02C01',
-#                      'GSM1641101_9283265129_R02C02', 'GSM1641102_9283265129_R03C01', 'GSM1641103_9283265129_R03C02',
-#                      'GSM1641104_9283265129_R04C01', 'GSM1641105_9283265129_R04C02', 'GSM1641106_9283265129_R05C01',
-#                      'GSM1641107_9283265129_R06C01', 'GSM1641108_9283265129_R05C02', 'GSM1641109_9283265129_R06C02',
-#                      'GSM1641110_9283265149_R01C01', 'GSM1641111_9283265149_R01C02', 'GSM1641112_9283265149_R02C01',
-#                      'GSM1641113_9283265149_R02C02', 'GSM1641114_9283265149_R03C01', 'GSM1641115_9283265149_R04C01',
-#                      'GSM1641116_9283265149_R05C01', 'GSM1641117_9283265149_R06C01')
+###################################################
+# rpy2 R object for extracting a real-world beta_matrix using R's GeoQuery
+###################################################
 
-#GSE42861 controls
-#control_samples <- c('GSM1051533_7800246024_R03C02' , 'GSM1051534_7800246024_R04C02', 'GSM1051535_7800246024_R05C02' , 'GSM1051536_7800246024_R06C02', 'GSM1051537_7800246085_R01C01' , 'GSM1051538_7800246085_R02C01', 'GSM1051539_7800246085_R03C01' , 'GSM1051540_7800246085_R04C01', 'GSM1051541_7800246085_R05C01' , 'GSM1051542_7800246085_R06C01', 'GSM1051543_7800246085_R01C02' , 'GSM1051544_7800246085_R02C02', 'GSM1051545_7800246085_R03C02' , 'GSM1051549_7800246087_R01C01' , 'GSM1051550_7800246087_R02C01', 'GSM1051551_7800246087_R03C01' , 'GSM1051552_7800246087_R04C01', 'GSM1051553_7800246087_R05C01' , 'GSM1051555_7800246087_R01C02' , 'GSM1051556_7800246087_R02C02', 'GSM1051557_7800246087_R03C02' , 'GSM1051558_7800246087_R04C02', 'GSM1051559_7800246087_R05C02' , 'GSM1051560_7800246087_R06C02', 'GSM1051561_7800246123_R01C01' , 'GSM1051562_7800246123_R02C01', 'GSM1051563_7800246123_R03C01' , 'GSM1051564_7800246123_R04C01', 'GSM1051565_7800246123_R05C01' , 'GSM1051566_7800246123_R06C01', 'GSM1051567_7800246123_R01C02' , 'GSM1051568_7800246123_R02C02', 'GSM1051569_7800246123_R03C02' , 'GSM1051570_7800246123_R04C02', 'GSM1051571_7800246123_R05C02' , 'GSM1051572_7800246123_R06C02', 'GSM1051573_7800246132_R01C01' , 'GSM1051574_7800246132_R02C01', 'GSM1051575_7800246132_R04C01' , 'GSM1051576_7800246132_R05C01', 'GSM1051577_7800246132_R06C01' , 'GSM1051578_7800246132_R01C02', 'GSM1051579_7800246132_R02C02' , 'GSM1051580_7800246132_R03C02', 'GSM1051581_7800246132_R04C02' , 'GSM1051582_7800246132_R05C02', 'GSM1051583_7800246132_R06C02' , 'GSM1051584_7800246137_R01C01', 'GSM1051585_7800246137_R02C01' , 'GSM1051586_7800246137_R03C01', 'GSM1051587_7800246137_R04C01' , 'GSM1051588_7800246137_R05C01', 'GSM1051589_7800246137_R06C01' , 'GSM1051590_7800246137_R02C02', 'GSM1051591_7800246137_R03C02' , 'GSM1051592_7800246137_R04C02', 'GSM1051593_7800246137_R05C02' , 'GSM1051594_7800246137_R06C02', 'GSM1051595_7800246140_R01C01' , 'GSM1051596_7800246140_R02C01', 'GSM1051597_7800246140_R03C01' , 'GSM1051599_7800246140_R05C01' , 'GSM1051601_7800246140_R01C02' , 'GSM1051602_7800246140_R02C02', 'GSM1051603_7800246140_R03C02' , 'GSM1051604_7800246140_R04C02', 'GSM1051605_7800246140_R05C02' , 'GSM1051606_7800246140_R06C02', 'GSM1051607_7800246188_R01C01' , 'GSM1051608_7800246188_R02C01', 'GSM1051609_7800246188_R03C01' , 'GSM1051610_7800246188_R04C01', 'GSM1051618_7796814016_R01C01', 'GSM1051619_7796814016_R03C01' , 'GSM1051620_7796814016_R04C01', 'GSM1051621_7796814016_R05C01' , 'GSM1051622_7796814016_R06C01', 'GSM1051623_7796814016_R01C02' , 'GSM1051624_7796814016_R02C02', 'GSM1051625_7796814016_R03C02' , 'GSM1051626_7796814016_R04C02', 'GSM1051627_7796814016_R05C02' , 'GSM1051628_7796814016_R06C02', 'GSM1051629_7800246006_R01C01' , 'GSM1051630_7800246006_R02C01', 'GSM1051631_7800246006_R03C01' , 'GSM1051632_7800246006_R04C01', 'GSM1051633_7800246006_R05C01' , 'GSM1051634_7800246006_R06C01', 'GSM1051635_7800246006_R01C02' , 'GSM1051638_7800246006_R04C02', 'GSM1051639_7800246006_R05C02' , 'GSM1051641_7800246018_R01C01' , 'GSM1051642_7800246018_R02C01', 'GSM1051643_7800246018_R03C01' , 'GSM1051644_7800246018_R04C01', 'GSM1051645_7800246018_R05C01' , 'GSM1051646_7800246018_R06C01', 'GSM1051647_7800246018_R01C02' , 'GSM1051648_7800246018_R02C02', 'GSM1051649_7800246018_R03C02' , 'GSM1051650_7800246018_R04C02', 'GSM1051651_7800246018_R05C02' , 'GSM1051652_7800246018_R06C02', 'GSM1051653_7800246043_R01C01' , 'GSM1051654_7800246043_R02C01', 'GSM1051655_7800246043_R03C01' , 'GSM1051656_7800246043_R05C01', 'GSM1051657_7800246043_R06C01' , 'GSM1051658_7800246043_R01C02', 'GSM1051659_7800246043_R03C02' , 'GSM1051660_7800246043_R04C02', 'GSM1051661_7800246043_R05C02' , 'GSM1051662_7800246043_R06C02', 'GSM1051663_7800246054_R01C01' , 'GSM1051664_7800246054_R02C01', 'GSM1051665_7800246054_R03C01' , 'GSM1051666_7800246054_R04C01', 'GSM1051667_7800246054_R05C01' , 'GSM1051668_7800246054_R06C01', 'GSM1051669_7800246054_R01C02' , 'GSM1051671_7800246054_R03C02' , 'GSM1051672_7800246054_R04C02', 'GSM1051673_7800246054_R05C02' , 'GSM1051674_7800246054_R06C02', 'GSM1051675_7800246055_R01C01' , 'GSM1051687_7800246071_R01C01' , 'GSM1051688_7800246071_R02C01', 'GSM1051689_7800246071_R03C01' , 'GSM1051690_7800246071_R04C01', 'GSM1051691_7800246071_R05C01' , 'GSM1051692_7800246071_R06C01', 'GSM1051693_7800246071_R01C02' , 'GSM1051710_7800246034_R01C01', 'GSM1051712_7800246034_R03C01', 'GSM1051713_7800246034_R04C01' , 'GSM1051714_7800246034_R05C01', 'GSM1051715_7800246034_R06C01' , 'GSM1051716_7800246034_R01C02', 'GSM1051717_7800246034_R02C02' , 'GSM1051726_7800246040_R05C01', 'GSM1051727_7800246040_R06C01' , 'GSM1051730_7800246040_R03C02', 'GSM1051731_7800246040_R04C02' , 'GSM1051732_7800246040_R05C02', 'GSM1051733_7800246040_R06C02' , 'GSM1051742_7800246041_R03C02', 'GSM1051744_7800246041_R05C02', 'GSM1051745_7800246041_R06C02' , 'GSM1051746_7800246044_R01C01', 'GSM1051749_7800246044_R04C01' , 'GSM1051751_7800246044_R06C01' , 'GSM1051752_7800246044_R01C02', 'GSM1051754_7800246044_R03C02', 'GSM1051755_7800246044_R04C02' , 'GSM1051756_7800246044_R05C02', 'GSM1051757_7800246046_R01C01' , 'GSM1051758_7800246046_R02C01', 'GSM1051759_7800246046_R03C01' , 'GSM1051760_7800246046_R04C01', 'GSM1051761_7800246046_R05C01' , 'GSM1051762_7800246046_R06C01', 'GSM1051763_7800246046_R01C02' , 'GSM1051764_7800246046_R02C02', 'GSM1051765_7800246046_R03C02' , 'GSM1051766_7800246046_R04C02', 'GSM1051767_7800246046_R05C02' , 'GSM1051768_7800246046_R06C02', 'GSM1051769_7800246057_R01C01' , 'GSM1051770_7800246057_R02C01', 'GSM1051771_7800246057_R03C01' , 'GSM1051772_7800246057_R04C01', 'GSM1051773_7800246057_R05C01' , 'GSM1051774_7800246057_R06C01', 'GSM1051775_7800246057_R01C02' , 'GSM1051777_7800246057_R03C02' , 'GSM1051781_7800246068_R01C01' , 'GSM1051782_7800246068_R02C01', 'GSM1051784_7800246068_R04C01', 'GSM1051786_7800246068_R06C01', 'GSM1051787_7800246068_R03C02' , 'GSM1051788_7800246068_R04C02', 'GSM1051789_7800246068_R05C02' , 'GSM1051790_7800246068_R06C02', 'GSM1051791_7800246079_R01C01' , 'GSM1051792_7800246079_R02C01', 'GSM1051793_7800246079_R04C01' , 'GSM1051802_7512560084_R05C02', 'GSM1051803_7512560084_R06C02' , 'GSM1051804_7512560103_R01C01', 'GSM1051805_7512560103_R02C01' , 'GSM1051806_7512560103_R03C01', 'GSM1051807_7512560103_R04C01' , 'GSM1051808_7512560103_R05C01', 'GSM1051809_7512560103_R06C01' , 'GSM1051810_7512560103_R01C02', 'GSM1051811_7512560103_R02C02' , 'GSM1051812_7512560103_R03C02', 'GSM1051813_7512560103_R04C02' , 'GSM1051814_7512560103_R05C02', 'GSM1051815_7512560103_R06C02' , 'GSM1051816_7512560104_R01C01', 'GSM1051817_7512560104_R02C01' , 'GSM1051820_7512560104_R05C01', 'GSM1051821_7512560104_R06C01' , 'GSM1051822_7512560104_R01C02', 'GSM1051823_7512560104_R02C02' , 'GSM1051824_7512560104_R03C02', 'GSM1051825_7512560104_R05C02' , 'GSM1051826_7512560104_R06C02', 'GSM1051827_7512560115_R01C01' , 'GSM1051828_7512560115_R02C01', 'GSM1051831_7512560115_R05C01' , 'GSM1051832_7512560115_R06C01', 'GSM1051833_7512560115_R01C02' , 'GSM1051834_7512560115_R02C02', 'GSM1051835_7512560115_R03C02' , 'GSM1051836_7512560115_R04C02', 'GSM1051837_7512560115_R05C02' , 'GSM1051838_7512560115_R06C02', 'GSM1051839_7512560124_R01C01' , 'GSM1051840_7512560124_R02C01', 'GSM1051841_7512560124_R03C01' , 'GSM1051842_7512560124_R04C01', 'GSM1051843_7512560124_R05C01' , 'GSM1051844_7512560124_R06C01', 'GSM1051845_7512560124_R01C02' , 'GSM1051846_7512560124_R02C02', 'GSM1051847_7512560124_R03C02' , 'GSM1051848_7512560124_R04C02', 'GSM1051850_7512560124_R06C02', 'GSM1051851_7512560128_R01C01' , 'GSM1051852_7512560128_R02C01', 'GSM1051853_7512560128_R04C01' , 'GSM1051854_7512560128_R05C01', 'GSM1051855_7512560128_R06C01' , 'GSM1051857_7512560128_R02C02' , 'GSM1051859_7512560128_R04C02' , 'GSM1051860_7512560128_R05C02', 'GSM1051862_7766130158_R01C01', 'GSM1051863_7766130158_R02C01' , 'GSM1051864_7766130158_R03C01', 'GSM1051865_7766130158_R04C01', 'GSM1051873_7766130166_R01C01' , 'GSM1051874_7766130166_R02C01', 'GSM1051876_7766130166_R04C01', 'GSM1051883_7766130166_R05C02' , 'GSM1051884_7766130166_R06C02', 'GSM1051901_5730192053_R01C01' , 'GSM1051902_5730192053_R02C01', 'GSM1051903_5730192053_R03C01' , 'GSM1051904_5730192053_R05C01', 'GSM1051905_5730192053_R06C01' , 'GSM1051906_5730192053_R01C02', 'GSM1051907_5730192053_R02C02' , 'GSM1051923_5730504014_R03C02' , 'GSM1051924_5730504014_R05C02', 'GSM1051925_5730504014_R06C02' , 'GSM1051926_5730504015_R01C01', 'GSM1051927_5730504015_R02C01' , 'GSM1051928_5730504015_R03C01', 'GSM1051929_5730504015_R04C01' , 'GSM1051949_5765205058_R01C01' , 'GSM1051950_5765205058_R02C01', 'GSM1051951_5765205058_R04C01' , 'GSM1051952_5765205058_R05C01', 'GSM1051953_5765205058_R06C01' , 'GSM1051954_5765205058_R01C02', 'GSM1051955_5765205058_R02C02' , 'GSM1051962_5765205059_R05C01', 'GSM1051963_5765205059_R06C01' , 'GSM1051964_5765205059_R01C02', 'GSM1051965_5765205059_R02C02' , 'GSM1051966_5765205059_R04C02', 'GSM1051967_5765205059_R05C02' , 'GSM1051968_5765205059_R06C02', 'GSM1052015_5730053006_R03C02', 'GSM1052016_5730053006_R04C02' , 'GSM1052017_5730053006_R05C02', 'GSM1052018_5730053006_R06C02' , 'GSM1052019_5730053010_R01C01', 'GSM1052020_5730053010_R02C01' , 'GSM1052021_5730053010_R03C01', 'GSM1052022_5730053010_R04C01' , 'GSM1052034_5730053011_R03C02' , 'GSM1052035_5730053011_R04C02', 'GSM1052036_5730053011_R05C02' , 'GSM1052037_5730053011_R06C02', 'GSM1052038_5730053027_R01C01' , 'GSM1052039_5730053027_R02C01', 'GSM1052040_5730053027_R03C01' , 'GSM1052041_5730053027_R04C01', 'GSM1052047_5730053037_R01C01', 'GSM1052048_5730053037_R04C01' , 'GSM1052049_5730053037_R06C01', 'GSM1052050_5730053037_R01C02' , 'GSM1052051_5730053037_R02C02', 'GSM1052099_5730192036_R05C01', 'GSM1052100_5730192036_R06C01' , 'GSM1052101_5730192036_R01C02', 'GSM1052102_5730192036_R02C02' , 'GSM1052103_5730192036_R03C02', 'GSM1052104_5730192036_R04C02' , 'GSM1052122_5730192048_R01C01' , 'GSM1052123_5730192048_R02C01', 'GSM1052124_5730192048_R03C01' , 'GSM1052125_5730192048_R04C01', 'GSM1052126_5730192048_R05C01' , 'GSM1052127_5730192048_R06C01', 'GSM1052128_5730192048_R01C02' , 'GSM1052129_5730192048_R02C02', 'GSM1052130_5730192048_R03C02' , 'GSM1052131_5730192048_R04C02', 'GSM1052132_5730192048_R05C02' , 'GSM1052133_5730192048_R06C02', 'GSM1052134_5730192057_R01C01' , 'GSM1052135_5730192057_R02C01', 'GSM1052136_5730192057_R03C01' , 'GSM1052137_5730192057_R04C01', 'GSM1052188_5730053041_R05C01' , 'GSM1052189_5730053041_R06C01', 'GSM1052190_5730053041_R01C02' , 'GSM1052191_5730053041_R02C02', 'GSM1052192_5730053041_R03C02' , 'GSM1052193_5730053041_R04C02', 'GSM1052194_5730053041_R05C02' , 'GSM1052195_5730053041_R06C02', 'GSM1052206_5730053048_R05C01' , 'GSM1052207_5730053048_R06C01', 'GSM1052208_5730053048_R01C02' , 'GSM1052209_5730053048_R02C02', 'GSM1052211_5730053048_R04C02' , 'GSM1052212_5730053048_R05C02', 'GSM1052213_5730053048_R06C02')
-
-# Scenario 1 - Mixing controls GSE30870 and GSE124366
-#GEO_real_world_data < - "GSE30870"
-#gset < - getGEO(GEO_real_world_data, GSEMatrix=TRUE, getGPL=FALSE, GSElimits=c(1, 25))
-#beta_matrix < - as.data.frame(exprs(gset[[1]]))
-#control_samples < - c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867',
-#                      'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874',
-#                      'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
-#beta_matrix < - beta_matrix[0:485000, control_samples]
-#GEO_real_world_data < - "GSE124366"
-#gset < - getGEO(GEO_real_world_data, GSEMatrix=TRUE, getGPL=FALSE, GSElimits=c(1, 25))
-#second_beta_matrix < - as.data.frame(exprs(gset[[1]]))
-#second_beta_matrix < - second_beta_matrix[0:485000, ]
-#beta_matrix < - cbind(beta_matrix, second_beta_matrix)
-
-# Scenario 2 - GSE30870 Nonagenarians and newborns
-# control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
-# control_samples <- c('GSM765861', 'GSM765881', 'GSM765882', 'GSM765883', 'GSM765884', 'GSM765885', 'GSM765886', 'GSM765887', 'GSM765888', 'GSM765889', 'GSM765890', 'GSM765891', 'GSM765892', 'GSM765893', 'GSM765894', 'GSM765895', 'GSM765896', 'GSM765897', 'GSM765898', 'GSM765899')
-
-#control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
-# beta_matrix <- beta_matrix[,control_samples]
 robjects.r('''
             chooseCRANmirror(ind = 1)
             if (!require("BiocManager", quietly = TRUE))
@@ -62,10 +32,10 @@ robjects.r('''
             library(GEOquery)
             library(Biobase)
             get_betamatrix <- function(r, verbose=FALSE) {
-            GEO_real_world_data <- "GSE30870"
+            GEO_real_world_data <- "GSE67170"
             gset <- getGEO(GEO_real_world_data, GSEMatrix =TRUE, getGPL=FALSE)
             beta_matrix <- as.data.frame(exprs(gset[[1]]))
-            control_samples <- c('GSM765860', 'GSM765862', 'GSM765863', 'GSM765864', 'GSM765865', 'GSM765866', 'GSM765867', 'GSM765868', 'GSM765869', 'GSM765870', 'GSM765871', 'GSM765872', 'GSM765873', 'GSM765874', 'GSM765875', 'GSM765876', 'GSM765877', 'GSM765878', 'GSM765879', 'GSM765880')
+            control_samples <- c('GSM1641098', 'GSM1641099', 'GSM1641100', 'GSM1641101', 'GSM1641102', 'GSM1641103', 'GSM1641104', 'GSM1641105', 'GSM1641106', 'GSM1641107', 'GSM1641108', 'GSM1641109', 'GSM1641110', 'GSM1641111', 'GSM1641112', 'GSM1641113', 'GSM1641114', 'GSM1641115','GSM1641116', 'GSM1641117')
             beta_matrix <- beta_matrix[,control_samples]
             sample_names <- colnames(beta_matrix)
             print(sample_names)
@@ -75,54 +45,13 @@ robjects.r('''
             get_betamatrix()
             ''')
 
-#robjects.r('''
-#            chooseCRANmirror(ind = 1)
-#            if (!require("BiocManager", quietly = TRUE))
-#            install.packages("BiocManager", repos='https://cloud.r-project.org/')
-#            install.packages("GEOquery", repos='https://cloud.r-project.org/')
-#            install.packages("R.utils")
-#            library(BiocManager)
-#            library(GEOquery)
-#            library(Biobase)
-#            library(RnBeads)
-#            library(here)
-#            library(grid)
-#            options(timeout = max(300, getOption("timeout")))
-#            options(download.file.method.GEOquery = "wget")
-#            options("fftempdir" = here::here("Temp"))
-#            data.dir = here::here("Data_DNAm")
-#            idat.dir = file.path(data.dir, "idats")
-#            setwd("/Users/malwash/")
-#            pheno.file = file.path(data.dir, "sampleSheet_withBarcode.csv")
-#            analysis.dir = here::here("Output/RnBeads")
-#            report.dir = file.path(analysis.dir, "diffMeth_report")
-#            rnb.initialize.reports(report.dir)
-#            get_betamatrix <- function(r, verbose=FALSE) {
-#            rnb.options(identifiers.column = "barcode",
-#            import.idat.platform = "probes450",
-#            filtering.greedycut.pvalue.threshold = 0.05,
-#            filtering.sex.chromosomes.removal = TRUE,
-#            filtering.snp = "3",
-#            filtering.cross.reactive = TRUE,
-#            normalization.method = "none",
-#            normalization.background.method = "none",
-#            exploratory = FALSE,
-#            differential = FALSE
-#            )
-#            data.source = c(idat.dir, pheno.file)
-#            result = rnb.run.import(data.source = data.source, data.type = "infinium.idat.dir", dir.reports = report.dir)
-#            rnb.set = result$rnb.set
-#            unfiltered_rnb.set = rnb.set
-#            filtered_results = rnb.run.preprocessing(unfiltered_rnb.set, dir.reports = report.dir)
-#            filtered_rnb.set = filtered_results$rnb.set
-#            betas_RnBeads = as.data.frame(meth(filtered_rnb.set, row.names = TRUE))
-#            print(colnames(betas_RnBeads))
-#            pheno_RnBeads = pheno(filtered_rnb.set)
-#            list_df <- list(betas_RnBeads)
-#            }
-#            ''')
 
 def calculate_shape_parameters(beta_matrix):
+    """
+    Calculate the statistical mean and variance of a beta_matrix
+    :param beta_matrix: a matrix of beta_values to use as a reference for generating shape parameters
+    :rtype methPara: a dataframe containing a column for means and variances for each CpG in the beta_matrix
+    """
     list_of_means = [row for row in range(0, len(beta_matrix.index))]
     list_of_vars = [row for row in range(0, len(beta_matrix.index))]
     for i in list_of_means:
@@ -131,10 +60,26 @@ def calculate_shape_parameters(beta_matrix):
     methPara = pd.DataFrame(list(zip(list_of_means, list_of_vars)), index=beta_matrix.index, columns=["mu","var"])
     return methPara
 
-#list_of_controls = ['GSM1051533','GSM1051534','GSM1051535','GSM1051536','GSM1051537','GSM1051538','GSM1051539','GSM1051540','GSM1051541','GSM1051542','GSM1051543','GSM1051544','GSM1051545','GSM1051549','GSM1051550','GSM1051551','GSM1051552','GSM1051553','GSM1051555','GSM1051556','GSM1051557','GSM1051558','GSM1051559','GSM1051560','GSM1051561','GSM1051562','GSM1051563','GSM1051564','GSM1051565','GSM1051566','GSM1051567','GSM1051568','GSM1051569','GSM1051570','GSM1051571','GSM1051572','GSM1051573','GSM1051574','GSM1051575','GSM1051576','GSM1051577','GSM1051578','GSM1051579','GSM1051580','GSM1051581','GSM1051582','GSM1051583','GSM1051584','GSM1051585','GSM1051586','GSM1051587','GSM1051588','GSM1051589','GSM1051590','GSM1051591','GSM1051592','GSM1051593','GSM1051594','GSM1051595','GSM1051596','GSM1051597','GSM1051599','GSM1051601','GSM1051602','GSM1051603','GSM1051604','GSM1051605','GSM1051606','GSM1051607','GSM1051608','GSM1051609','GSM1051610','GSM1051618','GSM1051619','GSM1051620','GSM1051621','GSM1051622','GSM1051623','GSM1051624','GSM1051625','GSM1051626','GSM1051627','GSM1051628','GSM1051629','GSM1051630','GSM1051631','GSM1051632','GSM1051633','GSM1051634','GSM1051635','GSM1051638','GSM1051639','GSM1051641','GSM1051642','GSM1051643','GSM1051644','GSM1051645','GSM1051646','GSM1051647','GSM1051648','GSM1051649','GSM1051650','GSM1051651','GSM1051652','GSM1051653','GSM1051654','GSM1051655','GSM1051656','GSM1051657','GSM1051658','GSM1051659','GSM1051660','GSM1051661','GSM1051662','GSM1051663','GSM1051664','GSM1051665','GSM1051666','GSM1051667','GSM1051668','GSM1051669','GSM1051671','GSM1051672','GSM1051673','GSM1051674','GSM1051675','GSM1051687','GSM1051688','GSM1051689','GSM1051690','GSM1051691','GSM1051692','GSM1051693','GSM1051710','GSM1051712','GSM1051713','GSM1051714','GSM1051715','GSM1051716','GSM1051717','GSM1051726','GSM1051727','GSM1051730','GSM1051731','GSM1051732','GSM1051733','GSM1051742','GSM1051744','GSM1051745','GSM1051746','GSM1051749','GSM1051751','GSM1051752','GSM1051754','GSM1051755','GSM1051756','GSM1051757','GSM1051758','GSM1051759','GSM1051760','GSM1051761','GSM1051762','GSM1051763','GSM1051764','GSM1051765','GSM1051766','GSM1051767','GSM1051768','GSM1051769','GSM1051770','GSM1051771','GSM1051772','GSM1051773','GSM1051774','GSM1051775','GSM1051777','GSM1051781','GSM1051782','GSM1051784','GSM1051786','GSM1051787','GSM1051788','GSM1051789','GSM1051790','GSM1051791','GSM1051792','GSM1051793','GSM1051802','GSM1051803','GSM1051804','GSM1051805','GSM1051806','GSM1051807','GSM1051808','GSM1051809','GSM1051810','GSM1051811','GSM1051812','GSM1051813','GSM1051814','GSM1051815','GSM1051816','GSM1051817','GSM1051820','GSM1051821','GSM1051822','GSM1051823','GSM1051824','GSM1051825','GSM1051826','GSM1051827','GSM1051828','GSM1051831','GSM1051832','GSM1051833','GSM1051834','GSM1051835','GSM1051836','GSM1051837','GSM1051838','GSM1051839','GSM1051840','GSM1051841','GSM1051842','GSM1051843','GSM1051844','GSM1051845','GSM1051846','GSM1051847','GSM1051848','GSM1051850','GSM1051851','GSM1051852','GSM1051853','GSM1051854','GSM1051855','GSM1051857','GSM1051859','GSM1051860','GSM1051862','GSM1051863','GSM1051864','GSM1051865','GSM1051873','GSM1051874','GSM1051876','GSM1051883','GSM1051884','GSM1051901','GSM1051902','GSM1051903','GSM1051904','GSM1051905','GSM1051906','GSM1051907','GSM1051923','GSM1051924','GSM1051925','GSM1051926','GSM1051927','GSM1051928','GSM1051929','GSM1051949','GSM1051950','GSM1051951','GSM1051952','GSM1051953','GSM1051954','GSM1051955','GSM1051962','GSM1051963','GSM1051964','GSM1051965','GSM1051966','GSM1051967','GSM1051968','GSM1052015','GSM1052016','GSM1052017','GSM1052018','GSM1052019','GSM1052020','GSM1052021','GSM1052022']
-#beta_matrix = beta_matrix[:,list_of_controls]
-
 def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray, targetDelta, DMmethod, minTotSampleSize, maxTotSampleSize, SampleSizeSteps, FDRcritVal, NcntPer, core, sims):
+    """
+    Emulation of the R package pwrEWAS (https://rdrr.io/bioc/pwrEWAS/) using rpy2, with the extension of selecting
+    in which CpGs the signal is to be introduced based on the methylation state (e.g., <= 0.1, >= 0.9, <= 0.4 and >= 0.6)
+    :param targetDmCpGs: Target number of DM CpGs.
+    :param methPara: a shape parameter dataframe containing a column for means and variances
+    :param detectionLimit: Smallest detectable difference in DNAm (default: 0.01).
+    :param J: Number of CpGs tested/simulated (default: 100000).
+    :param CpGonArray: a matrix of beta_values to use as a reference for generating shape parameters
+    :param targetDelta: targetDelta Target maximum difference in mean DNAm. (Either 'targetDelta' or 'deltaSD' should be specified)
+    :param DMmethod: Method of Differential Methylation analysis: "limma" (default), "t-test (unequal var)", "t-test (equal var)", "Wilcox rank sum", "CPGassoc".
+    :param minTotSampleSize: Minimum total sample size.
+    :param maxTotSampleSize: Maximum total sample size.
+    :param SampleSizeSteps: Sample size increments.
+    :param FDRcritVal: FDRcritVal (default: 0.05).
+    :param NcntPer: Percentage sample group 1 (control group) (NcntPer = 0.5 indicates a balanced design).
+    :param core: Number of threads for multi-threading (default: 1).
+    :param sims: Number of simulated data sets (default: 50).
+    :rtype synthPwr: a list containing: powerArray (power-sample calculations per sim), metrics (marTypeI, classicalPower, FDR, and FDC measures) and FDR values
+    """
     robjects.r('''
                 install.packages("doSNOW")
                 install.packages("doParallel")
@@ -162,7 +107,7 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                     sqrt(0.25-methPara$var[cpgIdx4Tau]), 
                 b=0.5 - methPara$mu[cpgIdx4Tau] + 
                     sqrt(0.25-methPara$var[cpgIdx4Tau]))
-                percentile[i] <- stats::quantile(abs(delta),0.9999)
+                percentile[i] <- stats::quantile(abs(delta),0.9999, na.rm = TRUE)
                 }
                 targetDelta <- as.numeric(targetDelta)
                 if(mean(percentile) < targetDelta - 0.5*detectionLimit & tau >= 1){
@@ -325,8 +270,6 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 cl <- parallel::makeCluster(core, outfile="")
                 doSNOW::registerDoSNOW(cl)
                 Ntot <- NULL
-                direction_of_methylation_error <- c("hypermethylation", "hypomethylation")
-                chosen_direction <- "hypomethylation"
                 
                 multiThreadOut <- foreach(d = seq_along(tau), .combine = combine_tau, .packages = c("truncnorm", "limma", "CpGassoc", "genefilter"), .export = c("getAlphBet", "getMeanVar", "beta2Mvalue", "limma", "ttestSlow", "ttestFast", "Wilcox", "CPGassoc")) %:%
                 foreach(Ntot = totSampleSizes, .combine = combine_totSampleSizes) %dopar% { 
@@ -339,7 +282,6 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 classicalPower <- NULL
                 FDC <- NULL
                 probTP <- NULL
-                
                 for(sim in seq_len(sims)){
                 cpgIdx <- sample(x = seq_len(CpGonArray), size = J, replace = TRUE)
                 cpgIdxName <- paste(seq_len(J), "_", rownames(methPara)[cpgIdx], sep = "")
@@ -355,8 +297,10 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 
                 muToBeSimuUNchanged <- methPara$mu[cpgIdx]
                 muToBeSimuChanged  <- methPara$mu[cpgIdx]
-                muToBeSimuChanged[match(changedCpgsIdx, cpgIdx)] <- muToBeSimuChanged[match(changedCpgsIdx, cpgIdx)] + delta
                 
+                site_mean_check <- muToBeSimuChanged[match(changedCpgsIdx, cpgIdx)] >= 0.4 & muToBeSimuChanged[match(changedCpgsIdx, cpgIdx)] <= 0.6
+                muToBeSimuChanged[site_mean_check] <- muToBeSimuChanged[site_mean_check] + delta
+
                 params_unchanged <- getAlphBet(myMean = muToBeSimuUNchanged, myVar = methPara$var[cpgIdx])
                 alpha_unchanged <- params_unchanged$alpha
                 beta_unchanged <- params_unchanged$beta
@@ -368,27 +312,6 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 g2Beta <- NULL
                 g1Beta <- matrix(stats::rbeta(J*Ncnt, rep(alpha_unchanged, each = Ncnt), rep(beta_unchanged, each = Ncnt)), ncol = Ncnt, byrow = TRUE) 
                 g2Beta <- matrix(stats::rbeta(J*Ntx, rep(alpha_changed, each = Ntx), rep(beta_changed, each = Ntx)), ncol = Ntx, byrow = TRUE) 
-                
-                # Perform Epigenetic drift using an assigned sample_age
-                ages <- round(rnorm(ncol(g1Beta), mean = 15, sd = 5))
-                
-                min_max_normalized <- (ages - min(ages)) / (max(ages) - min(ages))
-                sigmoid_normalized <- 1 / (1 + exp(-ages))
-                arctangent_normalized <- (atan(ages) + (pi / 2)) / pi
-                rank_normalized <- rank(ages) / (length(ages) + 1)
-                inverse_normalized <- 1 / (ages - min(ages) + 1)
-                
-                if (chosen_direction == "hypermethylation") {
-                for (col in 1:ncol(g1Beta)) {
-                g1Beta[, col] <- g1Beta[, col] + rank_normalized
-                g2Beta[, col] <- g2Beta[, col] + rank_normalized
-                }
-                } else {
-                for (col in 1:ncol(g1Beta)) {
-                g1Beta[, col] <- g1Beta[, col] - rank_normalized
-                g2Beta[, col] <- g2Beta[, col] - rank_normalized
-                }
-                }
                 
                 g1Beta[g1Beta == 1] <- max(g1Beta[g1Beta != 1])
                 g2Beta[g2Beta == 1] <- max(g2Beta[g2Beta != 1])
@@ -425,8 +348,12 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
                 
                 variance_g1Beta_column <- apply(g1Beta, 2, var)
                 variance_g2Beta_column <- apply(g2Beta, 2, var)
+                mean_g1Beta_row <- rowMeans(g1Beta)
+                mean_g2Beta_row <- rowMeans(g2Beta)
                 write.table(variance_g1Beta_column,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg1col','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
                 write.table(variance_g2Beta_column,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/variances/varg2col','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
+                write.table(mean_g1Beta_row,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/means/meang1row','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
+                write.table(mean_g2Beta_row,file=paste('/Users/malwash/PycharmProjects/Synthetic_Power/Output/means/meang2row','_tau',as.character(tau[d]),'_sim',sim,'_samplesize',Ntx,'.csv'),sep=",",  col.names=FALSE)
                 }
 
                 outSim <- list() 
@@ -498,18 +425,6 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
     output_powerarray, output_metrics, output_fdr = power_result(targetDmCpGs, methPara, detectionLimit, J, CpGonArray, targetDelta, DMmethod, minTotSampleSize, maxTotSampleSize, SampleSizeSteps, FDRcritVal, NcntPer, core, sims)
     sample_steps = np.arange(minTotSampleSize, maxTotSampleSize + SampleSizeSteps, SampleSizeSteps)
 
-    # Visualise distribution of FDRs
-    #fdr_effectsizes = {item: [] for item in targetDelta}
-    #for delta_row in range(0, len(sample_steps)):
-    #    for sim in output_fdr:
-    #        for idx, effectsize in enumerate(fdr_effectsizes):
-    #            fdr_effectsizes[effectsize].append(sim[delta_row, idx])
-    #for effectsize in fdr_effectsizes:
-    #    fdr_effectsizes[effectsize].sort(reverse=True)
-    #    sns.kdeplot(fdr_effectsizes[effectsize]).set(title='Frequency Distribution of adjusted p-values')
-    #plt.xlabel("FDR (q-value)")
-
-    # Save all metrics to csvs
     for idx, metric in enumerate(output_metrics):
         if idx == 0:
             marTypeI = pd.DataFrame(metric, columns=targetDelta)
@@ -566,20 +481,61 @@ def get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray,
     plt.savefig(os.getcwd() + figuredirname + "dist_samples.png",dpi=300)
     plt.show()
 
+    plt.clf()
+    plt.figure(figsize=(10, 10))
+    plt.title("Distribution of CpG means")
+    plt.xlabel('Average % of Methylation values')
+    plt.ylabel('Frequency')
+
+    g1row = {row['tau']: [] for index, row in taus.iterrows()}
+    g2row = {row['tau']: [] for index, row in taus.iterrows()}
+    for sim_iter in range(1,sims+1):
+        for step in sample_steps:
+            for index, row in taus.iterrows():
+                g1rowpd = pd.read_csv('/Users/malwash/PycharmProjects/Synthetic_Power/Output/means/meang1row' + ' _tau ' + str(row['tau']) + ' _sim ' + str(sim_iter) + ' _samplesize ' + str(int(step / 2)) + ' .csv',index_col=0, header=None)
+                g2rowpd = pd.read_csv('/Users/malwash/PycharmProjects/Synthetic_Power/Output/means/meang2row' + ' _tau ' + str(row['tau']) + ' _sim ' + str(sim_iter) + ' _samplesize ' + str(int(step / 2)) + ' .csv',index_col=0, header=None)
+                g1row[row['tau']].extend(g1rowpd.iloc[:,0].values.tolist())
+                g2row[row['tau']].extend(g2rowpd.iloc[:,0].values.tolist())
+
+    for index, row in taus.iterrows():
+        sns.kdeplot(g1row[row['tau']], label='Case - τ:' + str(row['tau']),color='green',fill=True, common_norm=False, palette="crest",alpha=.5, linewidth=0)
+        sns.kdeplot(g2row[row['tau']], label='Control - τ:' + str(row['tau']),color='blue',fill=True, common_norm=False, palette="crest",alpha=.5, linewidth=0)
+    plt.legend()
+    plt.savefig(os.getcwd() + figuredirname + "dist_cpgs.png", dpi=300)
+    plt.show()
+
 def synthPwr(minTotSampleSize,maxTotSampleSize,SampleSizeSteps,NcntPer,targetDelta,deltaSD=None,J=100000,targetDmCpGs=100,tissueType="GSE67170",detectionLimit=0.01,DMmethod=["limma", "t-test (unequal var)", "t-test (equal var)", "Wilcox rank sum", "CPGassoc"],FDRcritVal=0.05,core=4,sims=50):
+    """
+    Main application to retrieve a reference EWAS and use this as a basis to generate a simulation and run synthPwr
+    :param minTotSampleSize: Minimum total sample size.
+    :param maxTotSampleSize: Maximum total sample size.
+    :param SampleSizeSteps: Sample size increments.
+    :param NcntPer: Percentage sample group 1 (control group) (NcntPer = 0.5 indicates a balanced design).
+    :param targetDelta: targetDelta Target maximum difference in mean DNAm. (Either 'targetDelta' or 'deltaSD' should be specified)
+    :param deltaSD: Standard deviation of simulated differences. (Either 'targetDelta' or 'deltaSD' should be specified)
+    :param J: Number of CpGs tested/simulated (default: 100000).
+    :param targetDmCpGs: Target number of DM CpGs.
+    :param tissueType: Select a tissue from a GEO Accession number.
+    :param methPara: a shape parameter dataframe containing a column for means and variances
+    :param detectionLimit: Smallest detectable difference in DNAm (default: 0.01).
+    :param DMmethod: Method of Differential Methylation analysis: "limma" (default), "t-test (unequal var)", "t-test (equal var)", "Wilcox rank sum", "CPGassoc".
+    :param FDRcritVal: FDRcritVal (default: 0.05).
+    :param core: Number of threads for multi-threading (default: 1).
+    :param sims: Number of simulated data sets (default: 50).
+    :rtype synthPwr: a list containing: powerArray (power-sample calculations per sim), metrics (marTypeI, classicalPower, FDR, and FDC measures) and FDR values
+    """
     beta_matrix_pull = robjects.r['get_betamatrix']
     beta_matrix = pd.DataFrame(beta_matrix_pull()[0]).transpose()
-    #list_of_samples = beta_matrix_pull()[1]
-    #list_of_cpgs = beta_matrix_pull()[2]
-    #beta_matrix.columns = list_of_samples
-    #beta_matrix.index = list_of_cpgs
     print("The reference data - Beta matrix:")
     print(beta_matrix.shape)
     print(beta_matrix)
-
     methPara = calculate_shape_parameters(beta_matrix)
     CpGonArray = len(methPara['mu'])
     get_power_calculation(targetDmCpGs, methPara, detectionLimit, J, CpGonArray, targetDelta, DMmethod, minTotSampleSize, maxTotSampleSize, SampleSizeSteps, FDRcritVal, NcntPer, core, sims)
+
+###################################################
+# Choose parameterisation to run synthPwr
+###################################################
 
 if __name__ == '__main__':
     input = {}
@@ -589,8 +545,8 @@ if __name__ == '__main__':
     input['Nsteps'] = 150
     input['J'] = 10000
     input['targetDmCpGs'] = 10
-    input['targetDeltaString'] = "0.1, 0.3, 0.5"
-    #input['tauString'] = "0.01, 0.03"
+    input['targetDeltaString'] = "0.01, 0.1, 0.5"
+    input['tauString'] = "0.01, 0.03"
     input['targetDelta'] = list(map(float, re.split(', ', input['targetDeltaString'])))
     input['deltaSDString'] = "0.01, 0.03"
     input['deltaSD'] = list(map(float, re.split(', ', input['deltaSDString'])))
